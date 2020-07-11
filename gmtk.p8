@@ -4,8 +4,8 @@ __lua__
 -- the day my dog got in charge
 -- submission to gmtk 2020
 -- by a cheap plastic imitation of a game dev (cpiod)
-t={1,2,1} --const
-tmp={{1,1,0},{0,0,0}}
+t={1,2,1, 1} --const
+tmp={{1,1,0,1},{0,0,0,0}}
 mem={tmp,tmp,tmp}
 
 function _init()
@@ -14,9 +14,9 @@ curs=0
 y_camera=0
 y_goal=128
 
-k=get_best(mem[1],{1,1,1})
-?k[1].." "..k[2].." "..k[3]
-?k[4]
+k=get_best(mem[1],{1,1,1,1})
+?k[1].." "..k[2].." "..k[3].." "..k[4]
+?k[5]
 
 f={true,false,true}
 n=7
@@ -52,14 +52,14 @@ function _update60()
   
   -- selection
   if btnp(🅾️) then
-   if enable[curs+1] and lsel<3 then
+   if enable[curs+1] and lsel<4 then
     enable[curs+1]=false
     lsel+=1
-    for i=1,3 do
+    for i=1,4 do
      if(sel[i]==nil) sel[i]=curs+1 break
     end
    elseif not enable[curs+1] then
-    for i=1,3 do
+    for i=1,4 do
      if(sel[i]==curs+1) sel[i]=nil
     end
     enable[curs+1]=true
@@ -68,7 +68,7 @@ function _update60()
   end
   
   -- confirm the selection
-  if btnp(❎) and lsel==3 then
+  if btnp(❎) and lsel==4 then
    screen=20
    inter={}
    for i=1,#f do
@@ -129,22 +129,23 @@ function _draw()
 	 -- set
   for c=0,n-1 do
    if(enable[c+1]) color(7) else color(5)
-   e1,e2,e3=unpack(s[c+1])
+   e1,e2,e3,e4=unpack(s[c+1])
    ?tostr(e1),16+32*flr(c/2),128+5+35*flr(c%2)
-   ?tostr(e2),16+32*flr(c/2),128+15+35*flr(c%2)
-   ?tostr(e3),16+32*flr(c/2),128+25+35*flr(c%2)
+   ?tostr(e2),16+32*flr(c/2),128+13+35*flr(c%2)
+   ?tostr(e3),16+32*flr(c/2),128+21+35*flr(c%2)
+   ?tostr(e4),16+32*flr(c/2),128+29+35*flr(c%2)
   end
   
   -- selection
-  ?tostr(sel[1]).." "..tostr(sel[2]).." "..tostr(sel[3]).." "..lsel,20,200
+  ?tostr(sel[1]).." "..tostr(sel[2]).." "..tostr(sel[3]).." "..tostr(sel[4]).." "..lsel,20,200
   spr(1,16+32*flr(curs/2),128+35+35*flr(curs%2))
  elseif screen==20 then
   camera(0,0)
   for i=1,#f do
    if f[i] then
     e,k=unpack(inter[i])
-    ?e[1].." "..e[2].." "..e[3],10,20*i+10
-    ?k[1].." "..k[2].." "..k[3].." "..tostr(k[4]),10,20*i
+    ?e[1].." "..e[2].." "..e[3].." "..e[4],10,20*i+10
+    ?k[1].." "..k[2].." "..k[3].." "..k[4].." "..tostr(k[4]),10,20*i
    end
   end
  end
@@ -155,7 +156,7 @@ end
 -- get the closest guess
 -- random if no memory
 function get_best(mem,tuple)
- local e1,e2,e3=unpack(tuple)
+ local e1,e2,e3,e4=unpack(tuple)
  if #mem==0 then
   return rnd()<.5
  else
@@ -163,12 +164,13 @@ function get_best(mem,tuple)
   local ld=5
   for i=1,#mem do
    local k=mem[i]
-   local k1,k2,k3=unpack(k)
+   local k1,k2,k3,k4=unpack(k)
    local d=0
    if(k1!=e1) d+=1
    if(k2!=e2) d+=1
    if(k3!=e3) d+=1
-   if(d<ld) out={k1,k2,k3,i} ld=d
+   if(k4!=e4) d+=1
+   if(d<ld) out={k1,k2,k3,k4,i} ld=d
   end
  end
  -- todo: dist min too low: other guess?
