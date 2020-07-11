@@ -7,38 +7,36 @@ __lua__
 t={1,1,2,2} --const
 card={2,3}
 mem={{},{},nil,nil} -- the models
---mem[3]=nil--todo virer
---mem[4]={0,-1,1,1}
 flist={{1,1,1,1},{1,1,0,0},{1,1,0,0},{1,1,1,0},{1,1,1,0},{1,1,1,1}}
 nlist={6,8,8,12,12,16,16}
 
 function new_level()
---lvl+=1
-socks={}
-f=flist[lvl] -- todo
-if(f==nil) f=flist[#flist]
-for i=1,4 do
- f[i]=f[i]==1
-end
-n=nlist[lvl] -- todo
-if(n==nil) n=nlist[#nlist]
-o=gen_obj()
-set,socks=gen_set(n)
-assert(#set==n)
-enable={}
-for i=1,n do
- enable[i]=true
-end
-assert(#enable==n)
-sel={}
-lsel=0
-y_camera=0
-screen=10
-curs=0
+	lvl+=1
+	socks={}
+	f=flist[lvl] -- todo
+	if(f==nil) f=flist[#flist]
+	for i=1,4 do
+	 f[i]=f[i]==true or f[i]==1
+	end
+	n=nlist[lvl] -- todo
+	if(n==nil) n=nlist[#nlist]
+	o=gen_obj()
+	set,socks=gen_set(n)
+	assert(#set==n)
+	enable={}
+	for i=1,n do
+	 enable[i]=true
+	end
+	assert(#enable==n)
+	sel={}
+	lsel=0
+	y_camera=0
+	screen=10
+	curs=0
 end
 
 function _init()
-	hp=50
+	hp=60
 	win=0
 	bool=false -- cinem
 	stars={}
@@ -54,10 +52,10 @@ function _init()
 	init_mstars()
 	init_expl()
 	init_ast()
-	music(53,120)
+	--music(53,120)
 	n=8
 	new_level()
-	screen=0 -- todo 0 dans version finale
+	screen=10 -- todo 0 dans version finale
 	t0=time()
 end
 
@@ -116,7 +114,7 @@ function _update60()
   if btnp(❎) and lsel==4 then
    screen=20
    for i=1,4 do
-    sel[i]={sel[i],rnd(10)-5,rnd(20)-10,rnd()<.5,rnd()<.5}
+    sel[i]={sel[i],rnd(8)-4,rnd(16)-8,rnd()<.5,rnd()<.5}
    end
    confirm_sel()
   end
@@ -149,10 +147,18 @@ function _update60()
    while screen<=24 and not f[screen-20] do
     screen+=1
    end
---   while screen>=26 and screen <=29 and not f[screen-25] do
---    screen+=1
---   end   
-   if(screen==26) new_level() screen=12 y_camera=128
+   -- after screen 25
+   if screen==26 then
+    hp-=damage
+    if hp<=0 then
+     screen=30 -- game over...
+    else
+     win+=win_pts 
+     new_level()
+     screen=12
+     y_camera=128
+    end
+   end
   end
 	end
 end
@@ -221,22 +227,29 @@ function display_equ(m)
 end
 
 function get_best_reg(mem,e)
- if(mem==nil) return {nil,flr(rnd(30))}
- local out=0
- for i=1,4 do
-  out+=mem[i]*e[i]
+ if mem==nil then
+  local mean=0
+  for i=1,4 do
+   mean+=e[i]
+  end
+  return {nil,flr(mean/4+.5)}
+ else
+	 local out=0
+	 for i=1,4 do
+	  out+=mem[i]*e[i]
+	 end
+	 s=get_equation(mem,e)
+	 assert(s!="")
+	 return {s,out}
  end
- s=get_equation(mem,e)
- assert(s!="")
- return {s,out}
 end
 
 function mem_update_reg(ex,e,c,index)
  local e1,e2,e3,e4=unpack(e)
  add(ex,{e1,e2,e3,e4,c})
- for i=1,5 do
-  printh(ex[1][i])
- end
+-- for i=1,5 do
+--  printh(ex[1][i])
+-- end
  local m={}
  local ld=1000
  
@@ -334,7 +347,6 @@ function gen_set(n)
 		l[1]=1+flr(rnd(2)) -- two sizes
 		l[2]=1+flr(rnd(3)) -- three colors
 		l[3]=flr(rnd(30))
-		l[4]=flr(rnd(30))
   c1,c2,c3=unpack(col_sock[l[2]])
 --  if(not f[2]) c3=c2
   -- sprite, c1, c2, c3, flip_x
@@ -475,13 +487,14 @@ end
 
 function confirm_sel()
  inter={}
- for i=1,#f do
+ for i=1,4 do
   -- only check enabled features
   if f[i] then
    local e={}
    -- extract the example from the selection
    for index in all(sel) do
-    add(e,set[index[1]][i])
+    -- objective 4 uses feature 3
+    add(e,set[index[1]][min(3,i)])
    end
    if t[i]==1 then
 	   -- get the best guess
@@ -607,6 +620,11 @@ function _draw()
   rectfill(4,40,7,100,5)
   rectfill(4,40+(60-hp),7,100,2)
   rect(4,40,7,100,0)
+
+  ?"win",115,32,6
+  rectfill(121,40,124,100,5)
+	 rectfill(121,40+(60-win),124,100,3)
+	 rect(121,40,124,100,0)
   
   prt("uSE THE ARROWS",nil,0,12,0)
   prt("TO MOVE",nil,7,12,0)
@@ -689,7 +707,7 @@ function _draw()
   end
 
 
- elseif screen>=20 and screen<=29 then
+ elseif screen>=20 and screen<=25 then
   -- interpretation screens
   palt()
   camera(0,0)
@@ -716,7 +734,6 @@ function _draw()
     draw_sock(9+22*i+x,38+y,socks[index],true,d)
  	 end
 	 end
-	 ?screen,64,5,8
 	 
 	 pal()
 	 palt(14,false)
@@ -730,6 +747,12 @@ function _draw()
 	 if screen==21 or screen==22 then
 	  local i=screen-20
 	  local e,k=unpack(inter[i])
+	  if i==1 then
+	   prt("avoid the asteroid",nil,73,12,0)
+	  else
+	   prt("room in fire",nil,73,12,0)
+   end
+   	  
 	  prt("tHE SOCKS ARE",nil,80,9,0)
 	  prt(get_msgf(e,i),nil,87,9,0)
 	  
@@ -747,17 +770,81 @@ function _draw()
    
   elseif screen==23 or screen==24 then
    local i=screen-20
+   if i==3 then
+	   prt("shoot the bomb",nil,73,12,0)
+	  else
+	   prt("find the police frequency",nil,73,12,0)
+   end
+
 	  local e,l=unpack(inter[i])
 	  local s,val=unpack(l)
 	  if s==nil then
 	  	prt("i HAVE NO IDEA WHAT i'M DOING!",nil,94,9,0)
-	   prt("lET'S CHOOSE "..val,nil,101,9,0)
+	   prt("lET'S CHOOSE THE MEAN: "..val,nil,101,9,0)
 	  else
 	   prt("mY BEST GUESS IS:",nil,94,9,0)
 	   prt(s,nil,101,9,0)
 	  end
+	 elseif screen==25 then
+	  local y=20
+	  damage=0
+	  win_pts=0
+	  if f[1] then
+	   if inter[1][2][5]!=o[1] then
+	    prt("wE COLLIDE THE ASTEROIDS!",nil,y,0,8)
+	    prt("hull damage: 5",nil,y+8,0,8)
+	    damage+=5
+	   else
+	    prt("wE AVOID THE ASTEROIDS",nil,y,0,6)
+	   end
+	  end
+	  y+=20
+	  if f[2] then
+	   if inter[2][2][5]!=o[2] then
+	    prt("tHE FIRE SPREADS!",nil,y,0,8)
+	    prt("hull damage: 8",nil,y+8,0,8)
+	    damage+=8
+	   else
+	    prt("tHE FIRE IS PUT OUT",nil,y,0,6)
+    end
+	  end
+	  y+=20
+	  if f[3] then
+	   if abs(inter[3][2][2]-o[3])<=1 then
+	    prt("tHE BOMB IS NEUTRALIZED",nil,y,0,8)
+	   elseif abs(inter[3][2][2]-o[3])<=3 then
+	    prt("tHE BOMB EXPLOSED FAR AWAY",nil,y,0,9)
+	    prt("hull damage: 1",nil,y+8,0,9)
+	    damage+=1
+	   else
+	    local d=flr(abs(inter[3][2][2]-o[3])/3)+2
+	    prt("tHE BOMB EXPLOSED NEAR US!",nil,y,0,8)
+	    prt("hull damage: "..d,nil,y+8,0,8)
+	    damage+=d
+	   end
+	  end
+	  y+=20
+	  if f[4] then
+	   if abs(inter[4][2][2]-o[4])<=1 then
+	    prt("wE COULD SPOKE TO THE POLICE!",nil,y,0,11)
+	    prt("win point: 10",nil,y+8,0,11)
+	    win_pts=10
+	   else
+	    prt("nO SIGNAL.",nil,y,0,6)
+	   end
+	  end
+	  y+=20
+	  if damage==0 then
+	   prt("no hull damage",nil,y,0,6)
+	  elseif damage<=8 then
+	   prt("total hull damage: "..damage,nil,y,0,9)
+	  else
+	   prt("total hull damage: "..damage,nil,y,0,8)
+   end
 	 end
- prt("pRESS x TO CONTINUE",nil,121,12,0) 
+  prt("pRESS x TO CONTINUE",nil,121,12,0)
+ else
+  assert(false)
  end
 end
 
