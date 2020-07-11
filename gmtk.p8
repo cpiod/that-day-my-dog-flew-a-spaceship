@@ -5,26 +5,14 @@ __lua__
 -- by a cheap plastic imitation of a game dev (cpiod)
 -- submission to gmtk 2020
 t={1,1,2,2} --const
+card={2,4}
 mem={{},{}}
 
-function _init()
-stars={}
-mstars={}
-ast={}
+function new_level()
+lvl+=1
 socks={}
-expl={}
-lvl=0
-init_stars()
-init_mstars()
-init_expl()
-init_ast() -- todo faire regulierement
---music(53,120)
-screen=10
-curs=0
-y_camera=0
-
-f={true,true,true,true}
-n=8
+init_ast()
+f={true,true,false,false} -- todo
 o=gen_obj()
 s,socks=gen_set(n)
 assert(#s==n)
@@ -35,6 +23,23 @@ end
 assert(#enable==n)
 sel={}
 lsel=0
+y_camera=0
+screen=10
+curs=0
+end
+
+function _init()
+stars={}
+mstars={}
+ast={}
+expl={}
+lvl=0
+init_stars()
+init_mstars()
+init_expl()
+--music(53,120)
+n=8
+new_level()
 end
 
 function _update60()
@@ -43,12 +48,14 @@ function _update60()
   update_mstars()
   if(btnp(🅾️)) then
    screen=1
+   -- change music
    --music(43,120)
    t0=time()
   end
  end
  
  if screen==1 then
+  -- animation title screen
   update_mstars()
   update_expl()
   if(time()-t0>2) screen=10
@@ -91,6 +98,9 @@ function _update60()
   -- confirm the selection
   if btnp(❎) and lsel==4 then
    screen=20
+   for i=1,4 do
+    sel[i]={sel[i],rnd(10)-5,rnd(20)-10,rnd()<.5,rnd()<.5}
+   end
    confirm_sel()
   end
 	end
@@ -110,9 +120,11 @@ function _update60()
   update_stars()
 	end
 	
-	if screen==20 then
-	 -- interpretation screen
-	 
+	if screen>=20 and screen<=29 then
+  -- interpretation screen
+  update_stars()
+  if(btnp(🅾️)) screen+=1
+  if(screen==30) new_level()
 	end
 end
 
@@ -121,10 +133,10 @@ end
 
 -- get the closest guess
 -- random if no memory
-function get_best(mem,tuple)
+function get_best(mem,tuple,card)
  local e1,e2,e3,e4=unpack(tuple)
  if #mem==0 then
-  return rnd()<.5
+  return {nil,nil,nil,nil,1+flr(rnd(card))}
  else
  -- lowest dist
   local ld=5
@@ -146,7 +158,7 @@ end
 
 function mem_update(mem,e,c)
  -- new prototype for this class
- mem[c+1]=e
+ mem[c]=e
 end
 -->8
 -- regression learning
@@ -157,12 +169,10 @@ end
 
 function gen_obj()
  local o={}
- for i=1,#t do
-  if(i==1) o[i]=1+flr(rnd(2))
-  if(i==2) o[i]=1+flr(rnd(4))
-  if(i==3) o[i]=flr(rnd(30)+5)
-  if(i==4) o[i]=flr(rnd(30)+5)
- end
+  o[1]=1+flr(rnd(2))
+  o[2]=1+flr(rnd(4))
+  o[3]=flr(rnd(30)+5)
+  o[4]=flr(rnd(30)+5)
  return o
 end
 
@@ -173,10 +183,8 @@ function gen_set(n)
  local socks={}
  for i=1,n do
   local l={}
-  for j=1,#t do
-			if(t[j]==1) l[j]=flr(rnd(3))
-			if(t[j]==2) l[j]=flr(rnd(10)+5)
-  end
+		l[1]=1+flr(rnd(2))
+		l[2]=1+flr(rnd(3))
   c1,c2,c3=unpack(col_sock[l[1]+1])
   if(not f[2]) c3=c2
   -- sprite, c1, c2, c3, flip_x
@@ -211,14 +219,14 @@ function update_stars()
  end
 end
 
-function draw_stars()
+function draw_stars(y)
  for i in all(stars) do
   local a,d,_,t=unpack(i)
   local col=nil
   if(d>t)col=5
   if(d>2*t)col=6
   if(d>3*t)col=7
-  if(col!=nil) pset(64+d*cos(a),64+d*sin(a),col)
+  if(col!=nil) pset(64+d*cos(a),y+d*sin(a),col)
  end
 end
 
@@ -298,6 +306,7 @@ function draw_expl(dx,dy)
   circfill(dx+x+12,dy+y+12,rad,c)
  end
 end
+
 -->8
 -- confirm selection
 
@@ -309,12 +318,17 @@ function confirm_sel()
    e={}
    -- extract the example from the selection
    for index in all(sel) do
-    add(e,s[index][i])
+    add(e,s[index[1]][i])
+    printh("example: "..s[index[1]][i])
    end
-   -- get the best guess
-   inter[i]={e,get_best(mem[i],e)}
-   -- memorize the solution
-   mem_update(mem[i],e,o[i])
+   if t[i]==1 then
+	   -- get the best guess
+	   inter[i]={e,get_best(mem[i],e,card[i])} -- todo cardinal
+	   -- memorize the solution
+	   mem_update(mem[i],e,o[i])
+	  else
+	   assert(t[i]==2)
+	  end
   end
  end
 end
@@ -349,9 +363,8 @@ function _draw()
    local s="oF A GAME dEV (cpiod)"
    ?s,64-2*#s,120,1
   end
- end
  
- if screen>=10 and screen<=12 then
+ elseif screen>=10 and screen<=12 then
   cls(5)
 
   -- camera movement
@@ -369,7 +382,7 @@ function _draw()
 	 rectfill(0,0,128,128*3,0x51)
 	 fillp()
 	 circfill(64,64,51,0)
-  draw_stars()
+  draw_stars(64)
 	 
 	 -- asteroids
 	 if(o[1]==1) draw_ast(20) else draw_ast(-20)
@@ -391,9 +404,6 @@ function _draw()
 	 
 	 clip()
   color(1)
-	 for y=2,5 do -- placeholder
-	  oval(40,10+64*y,70,40+64*y)
-	 end
 	 
 	 -- objective
 --	 fillp()
@@ -426,17 +436,17 @@ function _draw()
   
   prt("uSE THE ARROWS",nil,0,12,13)
   prt("TO MOVE",nil,7,12,13)
-
   prt("mAIN dECK ⬇️",nil,120,12,13)
   prt("cOCKPIT ⬆️",nil,131,12,13)
   prt("dOG THOUGHTS ⬇️",nil,248,12,13)
   prt("mAIN dECK ⬆️",nil,259,12,13)
+  prt("wHAT i WILL THROW:",nil,210,12,13)
 
   
 	 -- set
   for c=0,n-1 do
    pal()
-   palt(14)
+   palt(14,true)
    local nspr,c1,c2,c3,fx,fy=unpack(socks[c+1])
    if enable[c+1] then
     pal(3,c1)
@@ -457,7 +467,7 @@ function _draw()
   end
   
   pal()
-  palt(14)
+  palt(14,true)
   -- selection
   for i=1,4 do
    if sel[i]!=nil then
@@ -475,13 +485,77 @@ function _draw()
   circ(16+32*flr(curs/2),128+20+36*flr(curs%2),17,6)
   circ(16+32*flr(curs/2),128+20+36*flr(curs%2),18,6)
 --  spr(1,16+32*flr(curs/2),128+35+35*flr(curs%2))
- elseif screen==20 then
+ elseif screen>=20 and screen<=29 then
+  palt()
   camera(0,0)
+  cls(5) -- todo bizarre
+  fillp(░)
+	 rectfill(0,0,128,128,0x51)
+	 fillp()
+	 circfill(35,40,30,0)
+	 circfill(128-35,40,30,0)
+	 circ(35,40,30,13)
+	 circ(128-35,40,30,13)
+	 rect(35,10,128-35,70,13)
+	 rectfill(35,10+1,128-35,70-1,0)
+	 clip(20,10+1,128-50,58,0)
+	 draw_stars(40)
+  clip()
+  pal()
+  palt(14,true)
+  if(screen<=24) then
+   -- selection
+   for i=1,4 do
+    if sel[i]!=nil then
+      local index,x,y,fx,fy = unpack(sel[i])
+      local nspr,c1,c2,c3=unpack(socks[index])
+      pal(3,c1)
+      pal(11,c2)
+      pal(1,c3)
+   		 spr(nspr,5+22*i+x,34+y,2,2,fx,fy)
+ 	  end
+ 	 end
+	 end
+	 ?screen,64,5,8
+	 
+	 if screen>=21 and screen<=24 then
+	  local i=screen-20
+	  printh("i"..i)
+	  local e,k=unpack(inter[i])
+	  printh("e"..tostr(e))
+	  prt("the socks are",nil,80,10,4)
+	  local s=""
+	  printh("msgf"..mesf[i][1])
+	  for j=1,4 do
+	   s=s..mesf[i][e[j]].." "
+	  end
+	  prt(s,nil,90,10,4)
+	  
+	  if k[1]==nil then
+	   prt("i have no idea what i'm doing!",nil,100,10,4)
+	   prt("let's choose "..meso[i][k[5]],nil,110,10,4)
+	  else
+	  prt("the closest i know is",nil,100,10,4)
+	  local s=""
+	  for j=1,4 do
+	   s=s..mesf[i][k[j]].." "
+	  end
+	  prt(s,nil,110,10,4)
+	  
+	  prt("for which the answer was",mes[i][k[5]],nil,120,10,4)
+   end   	  
+	 end
+	 
+
   for i=1,#f do
    if f[i] then
     e,k=unpack(inter[i])
     ?e[1].." "..e[2].." "..e[3].." "..e[4],10,20*i+10
-    ?k[1].." "..k[2].." "..k[3].." "..k[4].." "..tostr(k[4]),10,20*i
+    if k[1]==nil then -- no example close
+     ?tostr(k[4]),10,20*i
+    else
+     ?k[1].." "..k[2].." "..k[3].." "..k[4].." "..tostr(k[4]),10,20*i
+    end
    end
   end
  end
@@ -497,9 +571,6 @@ function draw_block(x,y,w,h)
  end
 end
 
---print
-
-
 function prt(txt,x,y,c1,c2)
  if(x==nil) x=64-2*#txt
  for i=-1,1 do
@@ -509,6 +580,10 @@ function prt(txt,x,y,c1,c2)
  end
  ?txt,x,y,c1
 end
+
+mesf={{"thin","large"},{"green","red","blue"}}
+meso={{"left","right"},{"room a","room b","room c","room d"}}
+
 __gfx__
 00000000eeeeeeeeeeeeeeeeeee0eeeeeeeeeee000eeeeeeeeeeeeee000000ee0000000000000000000000000000000000000000000000000000000000000000
 00000000eeeeeeeeeeeeeeeeee0c0eeeeee0000bb30eeeeeeeeeeee0bbbbb30e0000000000000000000000000000000000000000000000000000000000000000
