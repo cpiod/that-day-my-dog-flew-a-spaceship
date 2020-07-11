@@ -6,14 +6,15 @@ __lua__
 -- submission to gmtk 2020
 t={1,1,2,2} --const
 card={2,3}
-mem={{},{}}
-flist={{1,1,1,0},{1,1,0,0},{1,0,0,0}}
-nlist={16,8,8,8}
+mem={{},{},nil,nil} -- the models
+--mem[3]=nil--todo virer
+--mem[4]={0,-1,1,1}
+flist={{1,1,1,1},{1,1,0,0},{1,1,0,0},{1,1,1,0},{1,1,1,0},{1,1,1,1}}
+nlist={6,8,8,12,12,16,16}
 
 function new_level()
-lvl+=1
+--lvl+=1
 socks={}
-init_ast()
 f=flist[lvl] -- todo
 if(f==nil) f=flist[#flist]
 for i=1,4 do
@@ -22,8 +23,8 @@ end
 n=nlist[lvl] -- todo
 if(n==nil) n=nlist[#nlist]
 o=gen_obj()
-s,socks=gen_set(n)
-assert(#s==n)
+set,socks=gen_set(n)
+assert(#set==n)
 enable={}
 for i=1,n do
  enable[i]=true
@@ -37,28 +38,27 @@ curs=0
 end
 
 function _init()
-hp=40
-bool=false -- cinem
-stars={}
-mstars={}
-ast={}
-shocks={}
-for i=1,4 do
-add_shock()
-end
-expl={}
-lvl=0
-init_stars()
-init_mstars()
-init_expl()
---music(53,120)
-n=8
-new_level()
-screen=10 -- todo 0 dans version finale
-t0=time()
-
-
-
+	hp=50
+	win=0
+	bool=false -- cinem
+	stars={}
+	mstars={}
+	ast={}
+	shocks={}
+	for i=1,4 do
+	 add_shock()
+	end
+	expl={}
+	lvl=0
+	init_stars()
+	init_mstars()
+	init_expl()
+	init_ast()
+	music(53,120)
+	n=8
+	new_level()
+	screen=0 -- todo 0 dans version finale
+	t0=time()
 end
 
 function _update60()
@@ -137,7 +137,11 @@ function _update60()
   update_stars()
 	end
 	
-	if screen>=20 and screen<=29 then
+	if screen==20 and time()-t2>1 then
+	 screen+=1
+	end
+	
+	if screen>=21 and screen<=29 then
   -- interpretation screen
   update_stars()
   if btnp(🅾️) then
@@ -145,10 +149,10 @@ function _update60()
    while screen<=24 and not f[screen-20] do
     screen+=1
    end
-   while screen>=26 and screen <=29 and not f[screen-25] do
-    screen+=1
-   end   
-   if(screen==30) new_level()
+--   while screen>=26 and screen <=29 and not f[screen-25] do
+--    screen+=1
+--   end   
+   if(screen==26) new_level() screen=12 y_camera=128
   end
 	end
 end
@@ -192,51 +196,81 @@ end
 -->8
 -- regression learning
 
-all_ex={{},{}}
+all_ex={nil,nil,{},{}}
 
-function get_best_reg(mem,tuple)
- if(mem==nil) return {nil,nil,nil,nil,rnd(30)}
- local out=0
+function get_equation(m,e)
+ local s=""
  for i=1,4 do
-  out+=mem[i]*tuple[i]
+  if m[i]==1 then
+   if(s!="") s=s.."+"
+   s=s..e[i]
+  elseif m[i]>1 then
+   if(s!="") s=s.."+"
+   s=s..m[i].."*"..e[i]
+  elseif m[i]==-1 then
+   s=s.."-"..e[i]
+  elseif m[i]<-1 then
+   s=s..m[i].."*"..e[i]
+  end
  end
- return {unpack(mem),out}
+ return s
 end
 
-function mem_update_reg(ex,e,c)
- add(ex,{unpack(e),c})
+function display_equ(m)
+ return get_equation(m,{"(sock 1)","(sock 2)","(sock 3)","(sock 4)"})
+end
+
+function get_best_reg(mem,e)
+ if(mem==nil) return {nil,flr(rnd(30))}
+ local out=0
+ for i=1,4 do
+  out+=mem[i]*e[i]
+ end
+ s=get_equation(mem,e)
+ assert(s!="")
+ return {s,out}
+end
+
+function mem_update_reg(ex,e,c,index)
+ local e1,e2,e3,e4=unpack(e)
+ add(ex,{e1,e2,e3,e4,c})
+ for i=1,5 do
+  printh(ex[1][i])
+ end
  local m={}
  local ld=1000
- -- reg one var
+ 
+ -- a
  for i=1,4 do
-  local d=0
+  local d=0 -- no malus
   for k in all(ex) do
    d+=abs(k[5]-k[i])
   end
   if d<ld then
    ld=d
-   m={0,0,0}
+   m={0,0,0,0}
    m[i]=1
   end
  end
  
-  -- reg double var
+ -- 2*a
  for i=1,4 do
-  local d=10
+  local d=10 -- slight malus
   for k in all(ex) do
    d+=abs(k[5]-2*k[i])
   end
   if d<ld then
    ld=d
-   m={0,0,0}
+   m={0,0,0,0}
    m[i]=2
   end
  end
  
- couple={{1,1,0,0},{0,1,1,0},{0,0,1,1},{1,0,1,0},{0,1,0,1},{1,0,0,1}} 
+ -- a+b
+ couple={{1,1,0,0},{0,1,1,0},{0,0,1,1},{1,0,1,0},{0,1,0,1},{1,0,0,1}}
  for l in all(couple) do
   a,b,c,d=unpack(l)  
-  local d=15
+  local d=15 -- malus
   for k in all(ex) do
    d+=abs(k[5]-a*k[1]-b*k[2]-c*k[3]-d*k[4])
   end
@@ -245,6 +279,38 @@ function mem_update_reg(ex,e,c)
    m=l
   end
  end
+ 
+ -- a-b
+ couple={{1,-1,0,0},{0,1,-1,0},{0,0,1,-1},{1,0,-1,0},{0,1,0,-1},{1,0,0,-1},
+  {-1,1,0,0},{0,-1,1,0},{0,0,-1,1},{-1,0,1,0},{0,-1,0,1},{-1,0,0,1}}
+ for l in all(couple) do
+  a,b,c,d=unpack(l)  
+  local d=15 -- malus
+  for k in all(ex) do
+   d+=abs(k[5]-a*k[1]-b*k[2]-c*k[3]-d*k[4])
+  end
+  if d<ld then
+   ld=d
+   m=l
+  end
+ end
+ 
+ -- a+b-c
+ couple={{1,1,-1,0},{-1,1,1,0},{-1,0,1,1},{1,0,1,0},{0,1,0,1},{1,-1,0,1},
+ {1,1,0,-1},{0,1,1,-1},{0,-1,1,1},{1,0,1,0},{0,1,0,1},{1,0,-1,1}}
+ for l in all(couple) do
+  a,b,c,d=unpack(l)  
+  local d=25 -- big malus
+  for k in all(ex) do
+   d+=abs(k[5]-a*k[1]-b*k[2]-c*k[3]-d*k[4])
+  end
+  if d<ld then
+   ld=d
+   m=l
+  end
+ end
+ 
+ mem[index]=m
 end
 -->8
 -- generation
@@ -268,6 +334,7 @@ function gen_set(n)
 		l[1]=1+flr(rnd(2)) -- two sizes
 		l[2]=1+flr(rnd(3)) -- three colors
 		l[3]=flr(rnd(30))
+		l[4]=flr(rnd(30))
   c1,c2,c3=unpack(col_sock[l[2]])
 --  if(not f[2]) c3=c2
   -- sprite, c1, c2, c3, flip_x
@@ -411,10 +478,10 @@ function confirm_sel()
  for i=1,#f do
   -- only check enabled features
   if f[i] then
-   e={}
+   local e={}
    -- extract the example from the selection
    for index in all(sel) do
-    add(e,s[index[1]][i])
+    add(e,set[index[1]][i])
    end
    if t[i]==1 then
 	   -- get the best guess
@@ -423,9 +490,12 @@ function confirm_sel()
 	   mem_update(mem[i],e,o[i])
 	  else
 	   assert(t[i]==2)
+    inter[i]={e,get_best_reg(mem[i],e)}
+		  mem_update_reg(all_ex[i],e,o[i],i)
 	  end
   end
  end
+ t2=time()
 end
 -->8
 -- draw
@@ -458,9 +528,8 @@ function _draw()
    end
   end
   if screen==0 then
-   prt("tHE DAY MY DOG GOT IN CHARGE",nil,20,9,4)
-   prt("OF OUR SPACESHIP FULL OF SOCKS",nil,30,9,4)
-   if(time()%1<.8) prt("press x to lose control!",nil,100,7,1)
+   prt("tHE DAY MY dOG",nil,20,9,1)
+   prt("FLEW MY sPACESHIP",nil,30,9,1)   if(time()%1<.8) prt("press x to lose control!",nil,100,7,1)
    local s="bY A cHEAP pLASTIC iMITATION"
    ?s,64-2*#s,114,1
    local s="oF A GAME dEV (cpiod)"
@@ -561,7 +630,7 @@ function _draw()
     pal()
     palt(14,true)
     local x,y=16+step*flr(c/2),22+128+4+36*flr(c%2)
-    draw_nb(x,y,socks[c+1])
+    draw_nb(x,y,set[c+1])
    end
   end
   
@@ -577,7 +646,7 @@ function _draw()
    if sel[i]!=nil then
     local x,y=32*(i-1)+16,232
     draw_sock(x,y,socks[sel[i]],true)
-    draw_nb(x,y,socks[sel[i]])
+    if (f[3] or f[4]) draw_nb(x,y,set[sel[i]])
 	  end
 	 end
   
@@ -602,11 +671,24 @@ function _draw()
     local expl=mem[k][i]
     if expl!=nil then
      local y=255+15*(2*(k-1)+i)
-     prt(get_msgf(expl,k),nil,y,9,0,15)
-     prt(" MEANS "..msgo[k][i],nil,y+7,9,0,15)
+     local c=k==1 and 14 or 13
+     prt(get_msgf(expl,k),nil,y,c,0,15)
+     prt(" MEANS "..msgo[k][i],nil,y+7,c,0,15)
     end
    end  
   end
+  
+  if mem[3]!=nil then
+   prt("bomb FORMULA:",nil,345,15,0)
+   prt(display_equ(mem[3]),nil,352,15,0)
+  end
+  
+  if mem[4]!=nil then
+   prt("freq FORMULA:",nil,360,12,0)
+   prt(display_equ(mem[4]),nil,367,12,0)
+  end
+
+
  elseif screen>=20 and screen<=29 then
   -- interpretation screens
   palt()
@@ -627,10 +709,11 @@ function _draw()
   pal()
   palt(14,true)
   if(screen<=24) then
-   -- selection
+   -- sock for dog
    for i=1,4 do
+    d=max(0,min(1,1-max(0,4*(t2-time())+2)+0.2*(4-i)))
     local index,x,y = unpack(sel[i])
-    draw_sock(9+22*i+x,38+y,socks[index],true,false)
+    draw_sock(9+22*i+x,38+y,socks[index],true,d)
  	 end
 	 end
 	 ?screen,64,5,8
@@ -639,12 +722,12 @@ function _draw()
 	 palt(14,false)
 	 palt(15,true)
 	 palt(0,false)
-	 if screen!=20 and screen!=25 then
+	 if screen!=25 then
 	  -- dog
-	  sspr(32,32,32,32,36,15,64,64)
+	  sspr(32,32,32,32,126-(max(0,min(.67,time()-t2-.5)))*135,15,64,64)
 	 end
 	 
-	 if screen>=21 and screen<=24 then
+	 if screen==21 or screen==22 then
 	  local i=screen-20
 	  local e,k=unpack(inter[i])
 	  prt("tHE SOCKS ARE",nil,80,9,0)
@@ -662,6 +745,17 @@ function _draw()
 	   prt("tHEN, i HAD TO CHOOSE "..msgo[i][k[5]],nil,108,9,0)
    end
    
+  elseif screen==23 or screen==24 then
+   local i=screen-20
+	  local e,l=unpack(inter[i])
+	  local s,val=unpack(l)
+	  if s==nil then
+	  	prt("i HAVE NO IDEA WHAT i'M DOING!",nil,94,9,0)
+	   prt("lET'S CHOOSE "..val,nil,101,9,0)
+	  else
+	   prt("mY BEST GUESS IS:",nil,94,9,0)
+	   prt(s,nil,101,9,0)
+	  end
 	 end
  prt("pRESS x TO CONTINUE",nil,121,12,0) 
  end
@@ -697,7 +791,8 @@ function prt(txt,x,y,c1,c2,dx)
  ?txt,x,y,c1
 end
 
-function draw_sock(x_center,y_center,sock,enable,draw_nb)
+function draw_sock(x_center,y_center,sock,enable,mul)
+ mul=mul or 1 
  local nspr,c1,c2,c3,fx,fy,big=unpack(sock)
  palt()
  palt(14,true)
@@ -716,12 +811,13 @@ function draw_sock(x_center,y_center,sock,enable,draw_nb)
   if(f[3] or f[4]) pal(1,5) else pal(1,6)
  end
  local s=big and 32 or 16
+ s*=mul
  sspr(nspr*8,0,16,16,x_center-s/2,y_center-s/2,s,s,fx,fy)
  pal()
 end
 
-function draw_nb(x_center,y_center,sock)
- ?sock[3],x_center-2,y_center-4,7
+function draw_nb(x_center,y_center,set)
+ ?set[3],x_center-2,y_center-4,7
  if(n<=8) print("DOTS",x_center-6,y_center+1,7)
 end
 
@@ -772,16 +868,16 @@ ee0dd10d10eeeeeeeeeeeeeeeeeeeeeeffff067760ffffffffffff060600ffffeeeee7eeeeeeeeee
 eee0dd10d10eeeeeeeeeeeeeeeeeeeeeffff0677660f00000000f06606660fff0000000000000000000000000000000000000000000000000000000000000000
 eeee0ddd0000000000000000eeeeeeeeffff0677766066666666066670660fff0000000000000000000000000000000000000000000000000000000000000000
 eeee0dddd1111111111110d10eeeeeeeffff06777666666666666667770660ff0000000000000000000000000000000000000000000000000000000000000000
-eeee0dddddddddddddddd10d10eeeeeeffff06777766666666666667770000ff0000000000000000000000000000000000000000000000000000000000000000
-eeee0dddddddddddd555dd10000eeeeeffff067777666666666666777760ffff0000000000000000000000000000000000000000000000000000000000000000
-eeee00dddddddddd5ccc5ddd5c5555eeffff067776666777777766777760ffff0000000000000000000000000000000000000000000000000000000000000000
-eeeee0dddddddddd5ccc5ddd5cc5cc5efff06666666777777cc7766777660fff0000000000000000000000000000000000000000000000000000000000000000
-eeeee0ddddddddddd555dddd5cc5ccc5fff06666667cc77771c7776666660fff0000000000000000000000000000000000000000000000000000000000000000
-eeeee0ddddddddddddddddddd5cc5cc5ff066666677c177777777777666660ff0000000000000000000000000000000000000000000000000000000000000000
-0eeee0ddddddddddddddddddd5ccc5c5ff0666666777777777777777776660ff0000000000000000000000000000000000000000000000000000000000000000
-d000eddddddddddddddddddddd5ccc55ff0666667777777777777777777760ff0000000000000000000000000000000000000000000000000000000000000000
-ddd00ddddddd1111111111111dd5cc5eff0666777777777777777777777770ff0000000000000000000000000000000000000000000000000000000000000000
-ddddddddddd00000000000000000555eff0777777777770000777777777770ff0000000000000000000000000000000000000000000000000000000000000000
+eeee0dddddddddddddddd10d10eeeeeeffff0677776666666666666777000fff0000000000000000000000000000000000000000000000000000000000000000
+eeee0dddddddddddd555dd10000eeeeeffff067776666666666666777760ffff0000000000000000000000000000000000000000000000000000000000000000
+eeee00dddddddddd5ccc5ddd5c5555eeffff066666666776776666777760ffff0000000000000000000000000000000000000000000000000000000000000000
+eeeee0dddddddddd5ccc5ddd5cc5cc5efff06666666777777777666777660fff0000000000000000000000000000000000000000000000000000000000000000
+eeeee0ddddddddddd555dddd5cc5ccc5fff066666677777777cc776666660fff0000000000000000000000000000000000000000000000000000000000000000
+eeeee0ddddddddddddddddddd5cc5cc5ff066666677cc777771c7776666660ff0000000000000000000000000000000000000000000000000000000000000000
+0eeee0ddddddddddddddddddd5ccc5c5ff066666677c177777777777666660ff0000000000000000000000000000000000000000000000000000000000000000
+d000eddddddddddddddddddddd5ccc55ff0666667777777777777777766660ff0000000000000000000000000000000000000000000000000000000000000000
+ddd00ddddddd1111111111111dd5cc5eff0666777777777777777777777660ff0000000000000000000000000000000000000000000000000000000000000000
+ddddddddddd00000000000000000555eff0667777777770000777777777770ff0000000000000000000000000000000000000000000000000000000000000000
 ddd00dddddd10dd0eeeeeeeeeeeeeeeeff0777777777700000077777777770ff0000000000000000000000000000000000000000000000000000000000000000
 d00ee0dddddd10dd0eeeeeeeeeeeeeeeff0777777777770000777777777770ff0000000000000000000000000000000000000000000000000000000000000000
 0eeee0dddddd10dd0eeeeeeeeeeeeeeefff07777777777700777777777770fff0000000000000000000000000000000000000000000000000000000000000000
@@ -804,7 +900,7 @@ __sfx__
 011800101154300000000001054300000000000e55300000000000c553000000b5630956300003075730c00300000000000000000000000000000000000000000000000000000000000000000000000000000000
 003000200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 01240020051450c145051450c145051450c145051450c145071450e145071450e145071450e145071450e1450d145141450d145141450d145141450d145141450c145071450c145071450c145071450c14507145
-00060000136521f6722566216632126220b612076120f6020560205602206021f6021d6021f6021c6021c6022160221602216022260224602246021c6021c6021d6021f602206022260224602246022460224602
+00060000316722f6722b6622b65229642246321c6321a632166220c612066121f6021d6021f6021c6021c6022160221602216022260224602246021c6021c6021d6021f602206022260224602246022460224602
 012400200e145151450e145151450e145151450e145151450c145131450c145131450c145131450c145131450f145161450f145161450f145161450f145161450e145151450e145151450c145131450c14513145
 011200200c1330960509613096131f6330960509615096150c1330960509613096130062309605096050e7130c1330960509613096131f6330960509615096150c1330960509613096130062309605096050e713
 014800200c5240c5200c5200c52510524105201052010525115241152011520115251352413520135201352511524115201152011525135241352013520135251452414520145201452013520135201352013525
