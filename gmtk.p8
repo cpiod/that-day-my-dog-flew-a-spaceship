@@ -5,15 +5,22 @@ __lua__
 -- by a cheap plastic imitation of a game dev (cpiod)
 -- submission to gmtk 2020
 t={1,1,2,2} --const
-card={2,4}
+card={2,3}
 mem={{},{}}
-flist={{true,false,false,false},{true,true,false,false},{true,true,true,true}}
+flist={{1,1,1,0},{1,1,0,0},{1,0,0,0}}
+nlist={16,8,8,8}
 
 function new_level()
 lvl+=1
 socks={}
 init_ast()
 f=flist[lvl] -- todo
+if(f==nil) f=flist[#flist]
+for i=1,4 do
+ f[i]=f[i]==1
+end
+n=nlist[lvl] -- todo
+if(n==nil) n=nlist[#nlist]
 o=gen_obj()
 s,socks=gen_set(n)
 assert(#s==n)
@@ -31,6 +38,7 @@ end
 
 function _init()
 hp=40
+bool=false -- cinem
 stars={}
 mstars={}
 ast={}
@@ -46,6 +54,11 @@ init_expl()
 --music(53,120)
 n=8
 new_level()
+screen=10 -- todo 0 dans version finale
+t0=time()
+
+
+
 end
 
 function _update60()
@@ -54,9 +67,7 @@ function _update60()
   update_mstars()
   if(btnp(🅾️)) then
    screen=1
-   -- change music
-   --music(43,120)
-   t0=time()
+   t1=time()
   end
  end
  
@@ -64,7 +75,7 @@ function _update60()
   -- animation title screen
   update_mstars()
   update_expl()
-  if(time()-t0>2) screen=10
+  if(time()-t1>2) screen=10
  end
 
 	if screen==11 then
@@ -146,26 +157,30 @@ end
 -- hamming learning
 
 -- get the closest guess
--- random if no memory
+-- random if too far
 function get_best(mem,tuple,card)
  local e1,e2,e3,e4=unpack(tuple)
  -- lowest dist
  local ld=5
  local out=nil
- for i=1,2 do
+ local unknown={}
+ for i=1,card do
   if mem[i]!=nil then
-  local k1,k2,k3,k4=unpack(mem[i])
-  local d=0
-  if(k1!=e1) d+=1
-  if(k2!=e2) d+=1
-  if(k3!=e3) d+=1
-  if(k4!=e4) d+=1
-  if(d<ld) out={k1,k2,k3,k4,i} ld=d
+   local k1,k2,k3,k4=unpack(mem[i])
+   local d=0
+   if(k1!=e1) d+=1
+   if(k2!=e2) d+=1
+   if(k3!=e3) d+=1
+   if(k4!=e4) d+=1
+   if(d<ld) out={k1,k2,k3,k4,i,d} ld=d
+  else
+   add(unknown,i)
   end
  end
- if ld>=3 and out==nil then
-  return {nil,nil,nil,nil,1+flr(rnd(card))}
+ if (#unknown>0 and ld>=3) then
+  return {nil,nil,nil,nil,rnd(unknown)}
  else
+  assert(out!=nil)
   return out
  end
 end
@@ -177,14 +192,67 @@ end
 -->8
 -- regression learning
 
--- todo
+all_ex={{},{}}
+
+function get_best_reg(mem,tuple)
+ if(mem==nil) return {nil,nil,nil,nil,rnd(30)}
+ local out=0
+ for i=1,4 do
+  out+=mem[i]*tuple[i]
+ end
+ return {unpack(mem),out}
+end
+
+function mem_update_reg(ex,e,c)
+ add(ex,{unpack(e),c})
+ local m={}
+ local ld=1000
+ -- reg one var
+ for i=1,4 do
+  local d=0
+  for k in all(ex) do
+   d+=abs(k[5]-k[i])
+  end
+  if d<ld then
+   ld=d
+   m={0,0,0}
+   m[i]=1
+  end
+ end
+ 
+  -- reg double var
+ for i=1,4 do
+  local d=10
+  for k in all(ex) do
+   d+=abs(k[5]-2*k[i])
+  end
+  if d<ld then
+   ld=d
+   m={0,0,0}
+   m[i]=2
+  end
+ end
+ 
+ couple={{1,1,0,0},{0,1,1,0},{0,0,1,1},{1,0,1,0},{0,1,0,1},{1,0,0,1}} 
+ for l in all(couple) do
+  a,b,c,d=unpack(l)  
+  local d=15
+  for k in all(ex) do
+   d+=abs(k[5]-a*k[1]-b*k[2]-c*k[3]-d*k[4])
+  end
+  if d<ld then
+   ld=d
+   m=l
+  end
+ end
+end
 -->8
 -- generation
 
 function gen_obj()
  local o={}
-  o[1]=1+flr(rnd(2))
-  o[2]=1+flr(rnd(4))
+  o[1]=1+flr(rnd(card[1]))
+  o[2]=1+flr(rnd(card[2]))
   o[3]=flr(rnd(30)+5)
   o[4]=flr(rnd(30)+5)
  return o
@@ -197,12 +265,11 @@ function gen_set(n)
  local socks={}
  for i=1,n do
   local l={}
-		l[1]=1+flr(rnd(2))
-		l[2]=1+flr(rnd(3))
+		l[1]=1+flr(rnd(2)) -- two sizes
+		l[2]=1+flr(rnd(3)) -- three colors
 		l[3]=flr(rnd(30))
-		l[4]=flr(rnd(30))
   c1,c2,c3=unpack(col_sock[l[2]])
-  if(not f[2]) c3=c2
+--  if(not f[2]) c3=c2
   -- sprite, c1, c2, c3, flip_x
   l2={4+2*flr(rnd(2)),c1,c2,c3,rnd()<.5,rnd()<.5,l[1]==1}
   add(set,l)
@@ -372,17 +439,25 @@ function _draw()
   cls(0)
   -- title screen
   draw_mstars()
---  pal(0,5)
-  local x,y=50+10*cos(time()/5),50+20*sin(time()/3)
+  local x,y=50+10*cos(time()/5),50+10*sin(time()/3)
+  local dx=min(0,time()-t0-2)
+  x+=50*dx
   circfill()
   if(screen==1) color(9) else color(8)
---  color(rnd()<.5 and 10 or 9)
   circfill(x-2,y+20,2+6*time()%2)
-  line(x+2,y+20,0,y+20)
+  line(x+2,y+20,-1,y+20)
   spr(64,x,y,4,4)
   if screen==1 then
-	  draw_expl(x,y)
-	 else
+   local x2=128-120*(time()-t1)
+   sspr(0,16,16,16,x2,50+x2/40,32,32)
+   if x2<x+20 then
+   -- todo sfx
+   -- change music
+    if(not bool) sfx(10,3) music(43,120) bool=true
+    draw_expl(x,y)
+   end
+  end
+  if screen==0 then
    prt("tHE DAY MY DOG GOT IN CHARGE",nil,20,9,4)
    prt("OF OUR SPACESHIP FULL OF SOCKS",nil,30,9,4)
    if(time()%1<.8) prt("press x to lose control!",nil,100,7,1)
@@ -394,14 +469,14 @@ function _draw()
  
  elseif screen>=10 and screen<=12 then
   cls(5)
-
   -- camera movement
 	 y_goal=(screen-10)*128
-	 -- todo: smooth camera movement
+	 dy=6
+  if(abs(y_camera-y_goal)<=3) dy=abs(y_camera-y_goal)
 	 if y_camera<y_goal then
-	  y_camera += 4
+	  y_camera += dy
 	 elseif y_camera>y_goal then
-	  y_camera -= 4
+	  y_camera -= dy
 	 end
 	 camera(0,y_camera)
 	 
@@ -432,9 +507,6 @@ function _draw()
 	 
 	 clip()
 	 draw_shocks()
-	 
-	 -- objective
---	 fillp()
 	 
   draw_block(98,105,28,20)
 	 if f[1] then
@@ -471,32 +543,72 @@ function _draw()
   prt("TO MOVE",nil,7,12,0)
   prt("mAIN dECK ⬇️",nil,120,12,0)
   prt("cOCKPIT ⬆️",nil,131,12,0)
-  prt("dOG THOUGHTS ⬇️",nil,248,12,0)
+  prt("cOMM dECK ⬇️",nil,248,12,0)
   prt("mAIN dECK ⬆️",nil,259,12,0)
   prt("wHAT i WILL THROW (z TO THROW):",nil,210,12,0)
   
 	 -- set
+  local step=100/(flr((n-1)/2))
   for c=0,n-1 do
    pal()
    palt(14,true)
-   local x,y=16+32*flr(c/2),22+128+4+36*flr(c%2)
+   local x,y=16+step*flr(c/2),22+128+4+36*flr(c%2)
    draw_sock(x,y,socks[c+1],enable[c+1])
-   if(f[3] or f[4]) print(s[c+1][3].." dots",16+32*flr(c/2),128+5+35*flr(c%2))
   end
+
+  for c=0,n-1 do
+   if enable[c+1] and (f[3] or f[4]) then
+    pal()
+    palt(14,true)
+    local x,y=16+step*flr(c/2),22+128+4+36*flr(c%2)
+    draw_nb(x,y,socks[c+1])
+   end
+  end
+  
+    -- cursor
+  circ(16+step*flr(curs/2),128+24+36*flr(curs%2),12,7)
+  circ(16+step*flr(curs/2),128+24+36*flr(curs%2),11,7)
+
   
   pal()
   palt(14,true)
   -- selection
   for i=1,4 do
    if sel[i]!=nil then
-      draw_sock(32*(i-1)+16,232,socks[sel[i]],true)
+    local x,y=32*(i-1)+16,232
+    draw_sock(x,y,socks[sel[i]],true)
+    draw_nb(x,y,socks[sel[i]])
 	  end
 	 end
-
-  -- cursor
-  circ(16+32*flr(curs/2),128+24+36*flr(curs%2),17,7)
-  circ(16+32*flr(curs/2),128+24+36*flr(curs%2),18,7)
+  
+  -- dog
+	 pal()
+  rectfill(4,256+20,40,256+45,1) 
+	 palt(14,false)
+	 palt(15,true)
+	 palt(0,false)
+  spr(68,6,256+17,4,4)
+  
+  rect(4,256+20,40,256+45,0)  
+  rect(3,256+19,41,256+46,0)  
+  rect(2,256+18,42,256+47,0)  
+  line(24,256+17,14,256+12,0)
+  line(24,256+18,14,256+13,0)
+  line(24,256+17,34,256+12,0)
+  line(24,256+18,34,256+13,0)
+  
+  for k=1,2 do
+   for i=1,card[k] do
+    local expl=mem[k][i]
+    if expl!=nil then
+     local y=255+15*(2*(k-1)+i)
+     prt(get_msgf(expl,k),nil,y,9,0,15)
+     prt(" MEANS "..msgo[k][i],nil,y+7,9,0,15)
+    end
+   end  
+  end
  elseif screen>=20 and screen<=29 then
+  -- interpretation screens
   palt()
   camera(0,0)
   cls(5) -- todo bizarre
@@ -518,7 +630,7 @@ function _draw()
    -- selection
    for i=1,4 do
     local index,x,y = unpack(sel[i])
-    draw_sock(9+22*i+x,38+y,socks[index],true)
+    draw_sock(9+22*i+x,38+y,socks[index],true,false)
  	 end
 	 end
 	 ?screen,64,5,8
@@ -529,36 +641,38 @@ function _draw()
 	 palt(0,false)
 	 if screen!=20 and screen!=25 then
 	  -- dog
-	  sspr(32,32,32,32,20,2,96,96)
+	  sspr(32,32,32,32,36,15,64,64)
 	 end
 	 
 	 if screen>=21 and screen<=24 then
 	  local i=screen-20
 	  local e,k=unpack(inter[i])
 	  prt("tHE SOCKS ARE",nil,80,9,0)
-	  local s=mesf[i][e[1]]
-	  for j=2,4 do
-	   s=s.." "..mesf[i][e[j]]
-	  end
-	  prt(s,nil,87,9,0)
+	  prt(get_msgf(e,i),nil,87,9,0)
 	  
 	  if k[1]==nil then
 	   prt("i HAVE NO IDEA WHAT i'M DOING!",nil,94,9,0)
-	   prt("lET'S CHOOSE "..meso[i][k[5]],nil,101,9,0)
+	   prt("lET'S CHOOSE "..msgo[i][k[5]],nil,101,9,0)
+	  elseif k[6]==0 then
+	   prt("i KNOW IT!",nil,94,9,0)
+	   prt("i CHOOSE "..msgo[i][k[5]],nil,101,9,0)
 	  else
-	   prt("tHE CLOSEST i KNOW IS",nil,94,9,0)
-	   local s=""
-	   for j=1,4 do
-	    s=s..mesf[i][k[j]].." "
-	   end
-	   prt(s,nil,101,9,0)
-	  
-	   prt("tHEN, i HAD TO CHOOSE "..meso[i][k[5]],nil,108,9,0)
+ 	  prt("tHE CLOSEST i KNOW IS",nil,94,9,0)
+	   prt(get_msgf(k,i),nil,101,9,0)
+	   prt("tHEN, i HAD TO CHOOSE "..msgo[i][k[5]],nil,108,9,0)
    end
    
 	 end
- prt("press x to continue",nil,121,12,0) 
+ prt("pRESS x TO CONTINUE",nil,121,12,0) 
  end
+end
+
+function get_msgf(e,i)
+	local s=msgf[i][e[1]]
+	for j=2,4 do
+	 s=s.." "..msgf[i][e[j]]
+	end
+	return s
 end
 
 function draw_block(x,y,w,h)
@@ -571,8 +685,10 @@ function draw_block(x,y,w,h)
  end
 end
 
-function prt(txt,x,y,c1,c2)
+function prt(txt,x,y,c1,c2,dx)
+ dx=dx or 0
  if(x==nil) x=64-2*#txt
+ x+=dx
  for i=-1,1 do
   for j=-1,1 do
    ?txt,x+i,y+j,c2
@@ -581,7 +697,7 @@ function prt(txt,x,y,c1,c2)
  ?txt,x,y,c1
 end
 
-function draw_sock(x_center,y_center,sock,enable)
+function draw_sock(x_center,y_center,sock,enable,draw_nb)
  local nspr,c1,c2,c3,fx,fy,big=unpack(sock)
  palt()
  palt(14,true)
@@ -601,11 +717,16 @@ function draw_sock(x_center,y_center,sock,enable)
  end
  local s=big and 32 or 16
  sspr(nspr*8,0,16,16,x_center-s/2,y_center-s/2,s,s,fx,fy)
-
+ pal()
 end
 
-mesf={{"big","small"},{"green","red","blue"}}
-meso={{"left","right"},{"room a","room b","room c","room d"}}
+function draw_nb(x_center,y_center,sock)
+ ?sock[3],x_center-2,y_center-4,7
+ if(n<=8) print("DOTS",x_center-6,y_center+1,7)
+end
+
+msgf={{"big","small"},{"green","red","blue"}}
+msgo={{"left","right"},{"room a","room b","room c","room d"}}
 
 __gfx__
 00000000eeeeeeeeeeeeeeeeeee0eeeeeeeeeee000eeeeeeeeeeeeee000000ee0000000000000000000000000000000000000000000000000000000000000000
@@ -673,7 +794,7 @@ eeeeeeeee0000000000000eeeeeeeeeefffffffff00077777777000fffffffff0000000000000000
 eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeffffffffffff00000000ffffffffffff0000000000000000000000000000000000000000000000000000000000000000
 eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeffffffffffffffffffffffffffffffff0000000000000000000000000000000000000000000000000000000000000000
 __sfx__
-011800200c0351004515055170550c0351004515055170550c0351004513055180550c0351004513055180550c0351104513055150550c0351104513055150550c0351104513055150550c035110451305515055
+001800200c0351004515055170550c0351004515055170550c0351004513055180550c0351004513055180550c0351104513055150550c0351104513055150550c0351104513055150550c035110451305515055
 010c0020102451c0071c007102351c0071c007102251c007000001022510005000001021500000000001021013245000001320013235000001320013225000001320013225000001320013215000001320013215
 003000202874028740287302872026740267301c7401c7301d7401d7401d7401d7401d7301d7301d7201d72023740237402373023720267402674026730267201c7401c7401c7401c7401c7301c7301c7201c720
 0030002000040000400003000030020400203004040040300504005040050300503005020050200502005020070400704007030070300b0400b0400b0300b0300c0400c0400c0300c0300c0200c0200c0200c020
@@ -683,7 +804,7 @@ __sfx__
 011800101154300000000001054300000000000e55300000000000c553000000b5630956300003075730c00300000000000000000000000000000000000000000000000000000000000000000000000000000000
 003000200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 01240020051450c145051450c145051450c145051450c145071450e145071450e145071450e145071450e1450d145141450d145141450d145141450d145141450c145071450c145071450c145071450c14507145
-014800202174421740217402274024744247401f7441f7402074420740207401f7401d7401f7401c7441c7402174421740217402274024744247401c7441c7401d7441f740207402274024744247402474024745
+00060000136521f6722566216632126220b612076120f6020560205602206021f6021d6021f6021c6021c6022160221602216022260224602246021c6021c6021d6021f602206022260224602246022460224602
 012400200e145151450e145151450e145151450e145151450c145131450c145131450c145131450c145131450f145161450f145161450f145161450f145161450e145151450e145151450c145131450c14513145
 011200200c1330960509613096131f6330960509615096150c1330960509613096130062309605096050e7130c1330960509613096131f6330960509615096150c1330960509613096130062309605096050e713
 014800200c5240c5200c5200c52510524105201052010525115241152011520115251352413520135201352511524115201152011525135241352013520135251452414520145201452013520135201352013525
