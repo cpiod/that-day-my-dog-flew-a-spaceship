@@ -7,12 +7,13 @@ __lua__
 t={1,1,2,2} --const
 card={2,4}
 mem={{},{}}
+flist={{true,false,false,false},{true,true,false,false},{true,true,true,true}}
 
 function new_level()
 lvl+=1
 socks={}
 init_ast()
-f={true,true,false,false} -- todo
+f=flist[lvl] -- todo
 o=gen_obj()
 s,socks=gen_set(n)
 assert(#s==n)
@@ -29,9 +30,14 @@ curs=0
 end
 
 function _init()
+hp=40
 stars={}
 mstars={}
 ast={}
+shocks={}
+for i=1,4 do
+add_shock()
+end
 expl={}
 lvl=0
 init_stars()
@@ -143,25 +149,25 @@ end
 -- random if no memory
 function get_best(mem,tuple,card)
  local e1,e2,e3,e4=unpack(tuple)
- if #mem==0 then
-  return {nil,nil,nil,nil,1+flr(rnd(card))}
- else
  -- lowest dist
-  local ld=5
-  for i=1,#mem do
-   local k=mem[i]
-   local k1,k2,k3,k4=unpack(k)
-   local d=0
-   if(k1!=e1) d+=1
-   if(k2!=e2) d+=1
-   if(k3!=e3) d+=1
-   if(k4!=e4) d+=1
-   if(d<ld) out={k1,k2,k3,k4,i} ld=d
+ local ld=5
+ local out=nil
+ for i=1,2 do
+  if mem[i]!=nil then
+  local k1,k2,k3,k4=unpack(mem[i])
+  local d=0
+  if(k1!=e1) d+=1
+  if(k2!=e2) d+=1
+  if(k3!=e3) d+=1
+  if(k4!=e4) d+=1
+  if(d<ld) out={k1,k2,k3,k4,i} ld=d
   end
  end
- -- todo: dist min too low: other guess?
- assert(out!=nil)
- return out
+ if ld>=3 and out==nil then
+  return {nil,nil,nil,nil,1+flr(rnd(card))}
+ else
+  return out
+ end
 end
 
 function mem_update(mem,e,c)
@@ -193,10 +199,12 @@ function gen_set(n)
   local l={}
 		l[1]=1+flr(rnd(2))
 		l[2]=1+flr(rnd(3))
-  c1,c2,c3=unpack(col_sock[l[1]+1])
+		l[3]=flr(rnd(30))
+		l[4]=flr(rnd(30))
+  c1,c2,c3=unpack(col_sock[l[2]])
   if(not f[2]) c3=c2
   -- sprite, c1, c2, c3, flip_x
-  l2={4+2*flr(rnd(2)),c1,c2,c3,rnd()<.5,rnd()<.5}
+  l2={4+2*flr(rnd(2)),c1,c2,c3,rnd()<.5,rnd()<.5,l[1]==1}
   add(set,l)
   add(socks,l2)
  end
@@ -205,6 +213,19 @@ function gen_set(n)
 end
 -->8
 -- particles
+
+function add_shock()
+ local a=rnd()
+ local d=rnd(40)
+ add(shocks,{72+flr(rnd(4)),60+d*cos(a),60+d*sin(a),rnd()<.5,rnd()<.5})
+end
+
+function draw_shocks()
+	for sh in all(shocks) do
+	 local nspr,x,y,fx,fy=unpack(sh)
+	 spr(nspr,x,y,1,1,fx,fy)
+ end
+end
 
 function init_stars()
  for i=1,20 do
@@ -327,7 +348,6 @@ function confirm_sel()
    -- extract the example from the selection
    for index in all(sel) do
     add(e,s[index[1]][i])
-    printh("example: "..s[index[1]][i])
    end
    if t[i]==1 then
 	   -- get the best guess
@@ -411,7 +431,7 @@ function _draw()
 	 circ(64,64,38,7)
 	 
 	 clip()
-  color(1)
+	 draw_shocks()
 	 
 	 -- objective
 --	 fillp()
@@ -442,36 +462,26 @@ function _draw()
  	 if(2*time()%1<0.8) prt(o[4],113,15,8,6)
   end
   
-  prt("uSE THE ARROWS",nil,0,12,13)
-  prt("TO MOVE",nil,7,12,13)
-  prt("mAIN dECK ⬇️",nil,120,12,13)
-  prt("cOCKPIT ⬆️",nil,131,12,13)
-  prt("dOG THOUGHTS ⬇️",nil,248,12,13)
-  prt("mAIN dECK ⬆️",nil,259,12,13)
-  prt("wHAT i WILL THROW:",nil,210,12,13)
-
+  ?"hull",2,32,6
+  rectfill(4,40,7,100,5)
+  rectfill(4,40+(60-hp),7,100,2)
+  rect(4,40,7,100,0)
+  
+  prt("uSE THE ARROWS",nil,0,12,0)
+  prt("TO MOVE",nil,7,12,0)
+  prt("mAIN dECK ⬇️",nil,120,12,0)
+  prt("cOCKPIT ⬆️",nil,131,12,0)
+  prt("dOG THOUGHTS ⬇️",nil,248,12,0)
+  prt("mAIN dECK ⬆️",nil,259,12,0)
+  prt("wHAT i WILL THROW (z TO THROW):",nil,210,12,0)
   
 	 -- set
   for c=0,n-1 do
    pal()
    palt(14,true)
-   local nspr,c1,c2,c3,fx,fy=unpack(socks[c+1])
-   if enable[c+1] then
-    pal(3,c1)
-    pal(11,c2)
-    pal(1,c3)
-   else
-    pal(3,6)
-    pal(11,6)
-    if(c1==c3) pal(1,6) else pal(1,5)
-   end
-		 sspr(nspr*8,0,16,16,32*flr(c/2),128+4+36*flr(c%2),32,32,fx,fy)
-   e1,e2,e3,e4=unpack(s[c+1])
-   color(7)
-   ?tostr(e1),16+32*flr(c/2),128+5+35*flr(c%2)
-   ?tostr(e2),16+32*flr(c/2),128+13+35*flr(c%2)
-   ?tostr(e3),16+32*flr(c/2),128+21+35*flr(c%2)
-   ?tostr(e4),16+32*flr(c/2),128+29+35*flr(c%2)
+   local x,y=16+32*flr(c/2),22+128+4+36*flr(c%2)
+   draw_sock(x,y,socks[c+1],enable[c+1])
+   if(f[3] or f[4]) print(s[c+1][3].." dots",16+32*flr(c/2),128+5+35*flr(c%2))
   end
   
   pal()
@@ -479,20 +489,13 @@ function _draw()
   -- selection
   for i=1,4 do
    if sel[i]!=nil then
-     local nspr,c1,c2,c3=unpack(socks[sel[i]])
-     pal(3,c1)
-     pal(11,c2)
-     pal(1,c3)
-  		 sspr(nspr*8,0,16,16,32*(i-1),224,32,32)
+      draw_sock(32*(i-1)+16,232,socks[sel[i]],true)
 	  end
 	 end
 
-
---  ?tostr(sel[1]).." "..tostr(sel[2]).." "..tostr(sel[3]).." "..tostr(sel[4]).." "..lsel,20,200
   -- cursor
-  circ(16+32*flr(curs/2),128+20+36*flr(curs%2),17,6)
-  circ(16+32*flr(curs/2),128+20+36*flr(curs%2),18,6)
---  spr(1,16+32*flr(curs/2),128+35+35*flr(curs%2))
+  circ(16+32*flr(curs/2),128+24+36*flr(curs%2),17,7)
+  circ(16+32*flr(curs/2),128+24+36*flr(curs%2),18,7)
  elseif screen>=20 and screen<=29 then
   palt()
   camera(0,0)
@@ -514,52 +517,47 @@ function _draw()
   if(screen<=24) then
    -- selection
    for i=1,4 do
-    if sel[i]!=nil then
-      local index,x,y,fx,fy = unpack(sel[i])
-      local nspr,c1,c2,c3=unpack(socks[index])
-      pal(3,c1)
-      pal(11,c2)
-      pal(1,c3)
-   		 spr(nspr,5+22*i+x,34+y,2,2,fx,fy)
- 	  end
+    local index,x,y = unpack(sel[i])
+    draw_sock(9+22*i+x,38+y,socks[index],true)
  	 end
 	 end
 	 ?screen,64,5,8
 	 
+	 pal()
 	 palt(14,false)
 	 palt(15,true)
 	 palt(0,false)
 	 if screen!=20 and screen!=25 then
+	  -- dog
 	  sspr(32,32,32,32,20,2,96,96)
 	 end
 	 
 	 if screen>=21 and screen<=24 then
 	  local i=screen-20
 	  local e,k=unpack(inter[i])
-	  prt("tHE SOCKS ARE",nil,80,10,4)
+	  prt("tHE SOCKS ARE",nil,80,9,0)
 	  local s=mesf[i][e[1]]
 	  for j=2,4 do
 	   s=s.." "..mesf[i][e[j]]
 	  end
-	  prt(s,nil,87,10,4)
+	  prt(s,nil,87,9,0)
 	  
 	  if k[1]==nil then
-	   prt("i HAVE NO IDEA WHAT i'M DOING!",nil,94,10,4)
-	   prt("lET'S CHOOSE "..meso[i][k[5]],nil,101,10,4)
+	   prt("i HAVE NO IDEA WHAT i'M DOING!",nil,94,9,0)
+	   prt("lET'S CHOOSE "..meso[i][k[5]],nil,101,9,0)
 	  else
-	  prt("tHE CLOSEST i KNOW IS",nil,94,10,4)
-	  local s=""
-	  for j=1,4 do
-	   s=s..mesf[i][k[j]].." "
-	  end
-	  prt(s,nil,101,10,4)
+	   prt("tHE CLOSEST i KNOW IS",nil,94,9,0)
+	   local s=""
+	   for j=1,4 do
+	    s=s..mesf[i][k[j]].." "
+	   end
+	   prt(s,nil,101,9,0)
 	  
-	  prt("tHEN, i HAD TO CHOOSE "..meso[i][k[5]],nil,108,10,4)
+	   prt("tHEN, i HAD TO CHOOSE "..meso[i][k[5]],nil,108,9,0)
    end
    
-   prt("press x to continue",nil,121,12,13)
 	 end
-	 
+ prt("press x to continue",nil,121,12,0) 
  end
 end
 
@@ -583,7 +581,30 @@ function prt(txt,x,y,c1,c2)
  ?txt,x,y,c1
 end
 
-mesf={{"thin","large"},{"green","red","blue"}}
+function draw_sock(x_center,y_center,sock,enable)
+ local nspr,c1,c2,c3,fx,fy,big=unpack(sock)
+ palt()
+ palt(14,true)
+ palt(0,false)
+ if enable and f[2] then
+  pal(3,c1)
+  pal(11,c2)
+  if(f[3] or f[4]) pal(1,c3) else pal(1,c2)
+ elseif enable and not f[2] then
+  pal(3,3)
+  pal(11,11)
+  pal(1,11)
+ else
+  pal(3,6)
+  pal(11,6)
+  if(f[3] or f[4]) pal(1,5) else pal(1,6)
+ end
+ local s=big and 32 or 16
+ sspr(nspr*8,0,16,16,x_center-s/2,y_center-s/2,s,s,fx,fy)
+
+end
+
+mesf={{"big","small"},{"green","red","blue"}}
 meso={{"left","right"},{"room a","room b","room c","room d"}}
 
 __gfx__
@@ -619,23 +640,23 @@ ee56666666655eee0000000000000000000000000000000000000000000000000000000000000000
 eee55566655eeeee0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 eeeeee555eeeeeee0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 eeeeeeeeeeeeeeee0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeffffffffffffffffffffffffffffffff0000000000000000000000000000000000000000000000000000000000000000
-eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeffffff0ffffffffffffffffff0ffffff0000000000000000000000000000000000000000000000000000000000000000
-eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeefffff060ffffffffffffffff060fffff0000000000000000000000000000000000000000000000000000000000000000
-eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeefffff060ffffffffffffffff060fffff0000000000000000000000000000000000000000000000000000000000000000
-000000000eeeeeeeeeeeeeeeeeeeeeeeffff06660ffffffffffffff06660ffff0000000000000000000000000000000000000000000000000000000000000000
-e0dd10d10eeeeeeeeeeeeeeeeeeeeeeeffff06760ffffffffffffff06660ffff0000000000000000000000000000000000000000000000000000000000000000
-ee0dd10d10eeeeeeeeeeeeeeeeeeeeeeffff067660ffffffffffff066760ffff0000000000000000000000000000000000000000000000000000000000000000
-ee0dd10d10eeeeeeeeeeeeeeeeeeeeeeffff067760ffffffffffff066760ffff0000000000000000000000000000000000000000000000000000000000000000
-eee0dd10d10eeeeeeeeeeeeeeeeeeeeeffff0677660f00000000f0667760ffff0000000000000000000000000000000000000000000000000000000000000000
-eeee0ddd0000000000000000eeeeeeeeffff067776606666666606667760ffff0000000000000000000000000000000000000000000000000000000000000000
-eeee0dddd1111111111110d10eeeeeeeffff067776666666666666677760ffff0000000000000000000000000000000000000000000000000000000000000000
-eeee0dddddddddddddddd10d10eeeeeeffff067777666666666666677760ffff0000000000000000000000000000000000000000000000000000000000000000
+eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeffffffffffffffffffffffffffffffffeeeeeeeeeeeeeeeeeeeeeeeeeee7eeee00000000000000000000000000000000
+eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeffffff0fffffffffffffffffffffffffeee7eeeeee7eeeeeeee77eeeeee7ee7e00000000000000000000000000000000
+eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeefffff060ffffffffffffffffffffffffeee7eee7e77eeeeeeeeee7eeeeee7e7e00000000000000000000000000000000
+eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeefffff060ffffffffffffffffffffffffeee7ee7eeee7eeeeeeeeee7eeeeee7ee00000000000000000000000000000000
+000000000eeeeeeeeeeeeeeeeeeeeeeeffff06660fffffffffffffffffffffffeeee77eeeeee7eeeeeeeeeeeeeeee7ee00000000000000000000000000000000
+e0dd10d10eeeeeeeeeeeeeeeeeeeeeeeffff06760fffffffffffffffffffffffeee77eeeeeeee7eeeeeeeeeeeeee7eee00000000000000000000000000000000
+ee0dd10d10eeeeeeeeeeeeeeeeeeeeeeffff067660fffffffffffff000ffffffe77ee7eeeeeeee77eeeeeeeeeee7eeee00000000000000000000000000000000
+ee0dd10d10eeeeeeeeeeeeeeeeeeeeeeffff067760ffffffffffff060600ffffeeeee7eeeeeeeeeeeeeeeeeeeeeeeeee00000000000000000000000000000000
+eee0dd10d10eeeeeeeeeeeeeeeeeeeeeffff0677660f00000000f06606660fff0000000000000000000000000000000000000000000000000000000000000000
+eeee0ddd0000000000000000eeeeeeeeffff0677766066666666066670660fff0000000000000000000000000000000000000000000000000000000000000000
+eeee0dddd1111111111110d10eeeeeeeffff06777666666666666667770660ff0000000000000000000000000000000000000000000000000000000000000000
+eeee0dddddddddddddddd10d10eeeeeeffff06777766666666666667770000ff0000000000000000000000000000000000000000000000000000000000000000
 eeee0dddddddddddd555dd10000eeeeeffff067777666666666666777760ffff0000000000000000000000000000000000000000000000000000000000000000
 eeee00dddddddddd5ccc5ddd5c5555eeffff067776666777777766777760ffff0000000000000000000000000000000000000000000000000000000000000000
 eeeee0dddddddddd5ccc5ddd5cc5cc5efff06666666777777cc7766777660fff0000000000000000000000000000000000000000000000000000000000000000
-eeeee0ddddddddddd555dddd5cc5ccc5fff06666667cc7777cc7776666660fff0000000000000000000000000000000000000000000000000000000000000000
-eeeee0ddddddddddddddddddd5cc5cc5ff066666677cc77777777777666660ff0000000000000000000000000000000000000000000000000000000000000000
+eeeee0ddddddddddd555dddd5cc5ccc5fff06666667cc77771c7776666660fff0000000000000000000000000000000000000000000000000000000000000000
+eeeee0ddddddddddddddddddd5cc5cc5ff066666677c177777777777666660ff0000000000000000000000000000000000000000000000000000000000000000
 0eeee0ddddddddddddddddddd5ccc5c5ff0666666777777777777777776660ff0000000000000000000000000000000000000000000000000000000000000000
 d000eddddddddddddddddddddd5ccc55ff0666667777777777777777777760ff0000000000000000000000000000000000000000000000000000000000000000
 ddd00ddddddd1111111111111dd5cc5eff0666777777777777777777777770ff0000000000000000000000000000000000000000000000000000000000000000
