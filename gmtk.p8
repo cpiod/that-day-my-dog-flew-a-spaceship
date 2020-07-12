@@ -9,7 +9,15 @@ __lua__
 t={1,1,2,2}
 card={2,3}
 flist={{1,0,0,0},{1,0,0,0},{1,1,0,0},{1,1,0,0},{1,1,0,1},{1,1,0,1},{1,1,1,1}}
---flist={{1,1,0,1},{1,1,1,1},{1,1,0,0},{1,1,0,1},{1,1,0,1},{1,1,1,1}}
+tuto=true
+--flist={{1,1,0,1},{1,1,0,1},{1,1,0,1},{1,1,0,1}}
+
+function disable_tuto()
+ tuto=false
+ cinem=0
+end
+menuitem(1,"disable tutorial",disable_tuto)
+
 
 function new_level()
 	lvl+=1
@@ -91,7 +99,10 @@ function _update60()
   -- animation title screen
   update_mstars()
   update_expl()
-  if(time()-t1>2) screen=10 cinem=1
+  if time()-t1>2 then
+   screen=10
+   if(tuto) cinem=1
+  end
  end
 	
 	if screen>=10 and screen<=12 and cinem!=0 and cinem!=4 then
@@ -233,20 +244,22 @@ function _update60()
      new_level()
      screen=12
      y_camera=128
-     if f[3] and not pirate_seen then
-      pirate_seen=true
-      cinem=30
-      screen=10
-     end
-     if f[4] and not radio_seen then
-      radio_seen=true
-      cinem=20
-      screen=10
-     end
-     if f[2] and not fire_seen then
-      fire_seen=true
-      cinem=40
-      screen=10
+     if tuto then
+	     if f[3] and not pirate_seen then
+	      pirate_seen=true
+	      cinem=30
+	      screen=10
+	     end
+	     if f[4] and not radio_seen then
+	      radio_seen=true
+	      cinem=20
+	      screen=10
+	     end
+	     if f[2] and not fire_seen then
+	      fire_seen=true
+	      cinem=40
+	      screen=10
+	     end
      end
     end
    end
@@ -308,7 +321,7 @@ end
 
 all_ex={nil,nil,{},{}}
 nb={nil,nil,1,1}
-max_nb=3
+max_nb=2
 
 function get_equation(m,e)
  local s=""
@@ -318,10 +331,6 @@ function get_equation(m,e)
    s=s..e[i]
   elseif m[i]>1 then
    if(s!="") s=s.."+"
-   s=s..m[i].."*"..e[i]
-  elseif m[i]==-1 then
-   s=s.."-"..e[i]
-  elseif m[i]<-1 then
    s=s..m[i].."*"..e[i]
   end
  end
@@ -357,9 +366,6 @@ function mem_update_reg(e,c,index)
  ex[nb[i]]={e1,e2,e3,e4,c}
  nb[i]+=1
  if(nb[i]>max_nb) nb[i]=1
--- for i=1,5 do
---  printh(ex[1][i])
--- end
  local m={}
  local ld=1000
  
@@ -376,10 +382,11 @@ function mem_update_reg(e,c,index)
  
  -- a
  for i=1,4 do
-  local d=0 -- no malus
+  local d=0
   for k in all(ex) do
    d+=abs(k[5]-k[i])
   end
+  
   if d<ld then
    ld=d
    m={0,0,0,0}
@@ -391,10 +398,11 @@ function mem_update_reg(e,c,index)
  if index==4 then
 	 -- 2*a
 	 for i=1,4 do
-	  local d=3 -- slight malus
+	  local d=0
 	  for k in all(ex) do
 	   d+=abs(k[5]-2*k[i])
 	  end
+
 	  if d<ld then
 	   ld=d
 	   m={0,0,0,0}
@@ -405,18 +413,19 @@ function mem_update_reg(e,c,index)
 	 -- a+b
 	 couple={{1,1,0,0},{0,1,1,0},{0,0,1,1},{1,0,1,0},{0,1,0,1},{1,0,0,1}}
 	 for l in all(couple) do
-	  a,b,c,d=unpack(l)  
-	  local d=5 -- malus
+	  a1,a2,a3,a4=unpack(l)
+	  local d=0
 	  for k in all(ex) do
-	   d+=abs(k[5]-a*k[1]-b*k[2]-c*k[3]-d*k[4])
+	   d+=abs(k[5]-a1*k[1]-a2*k[2]-a3*k[3]-a4*k[4])
 	  end
+	  
 	  if d<ld then
 	   ld=d
 	   m=l
 	  end
 	 end
  end
- 
+
  mem[index]=m
 end
 -->8
@@ -682,7 +691,7 @@ function _draw()
    palt(14,false)
    
    local x=190-30*(time()-t3)
-   local y=110-10*(time()-t3)
+   local y=110-10*(time()-t3)+10*sin(time()/5)
    nspr=132+4*flr(5*time()%2)
    spr(nspr,x+10,y+20,4,4)
    spr(68,x,y,4,4)
@@ -697,7 +706,7 @@ function _draw()
    
    local x=190-30*(time()-t3)
    local y=110-10*(time()-t3)+10*sin(time()/5)
-   spr(4,x,y,2,2)
+   spr(6,x,y,2,2)
    prt("i'M IN",x-15,y-13,13,1)
    prt("SPAAAACE!",x-20,y-6,13,1)
   end
@@ -798,7 +807,7 @@ function _draw()
   prt("mAIN dECK ⬆️",nil,259,12,0)
   if cinem==0 or cinem==4 then
    prt("press z to select",nil,206,12,0)
-   prt("what i will throw (x to throw):",nil,212,12,0)
+   prt("what i'll throw (x to throw):",nil,212,12,0)
   end
   
 	 -- set
@@ -915,7 +924,7 @@ function _draw()
    prt("at the right energy level!",nil,96,9,0)
   elseif cinem==40 then
    prt("oh no, fire in "..msgo[2][o[2]].."! my dog",nil,80,9,0)
-   prt("needs to handle it. i will use",nil,88,9,0)
+   prt("needs to handle it. i'll use",nil,88,9,0)
    prt("the socks' colour to tell him.",nil,96,9,0)
    prt("hull bar on the left",nil,104,7,0)
   end
@@ -956,7 +965,7 @@ function _draw()
 	 palt(0,false)
 	 if screen!=25 then
 	  -- dog
-	  sspr(32,32,32,32,126-(max(0,min(.67,time()-t2-1)))*135,5,64,64)
+	  sspr(32,32,32,32,126-(max(0,min(.67,time()-t2-1.5)))*135,5,64,64)
 	 end
 	 
 	 if screen==21 or screen==22 then
@@ -1037,8 +1046,8 @@ function _draw()
 	  if f[2] then
 	   if inter[2][2][5]!=o[2] then
 	    prt("the fire spreads!",nil,y,8,0)
-	    prt("hull damage: 4",nil,y+8,8,0)
-	    damage+=4
+	    prt("hull damage: 5",nil,y+8,8,0)
+	    damage+=5
 	   else
 	    prt("the fire is out",nil,y,6,0)
     end
@@ -1052,7 +1061,7 @@ function _draw()
 	    prt("hull damage: 1",nil,y+8,9,0)
 	    damage+=1
 	   else
-	    local d=flr(abs(inter[3][2][2]-o[3])/3)+2
+	    local d=flr(abs(inter[3][2][2]-o[3])/2)+2
 	    prt("the bomb exploded near us!",nil,y,8,0)
 	    prt("hull damage: "..d,nil,y+8,8,0)
 	    damage+=d
