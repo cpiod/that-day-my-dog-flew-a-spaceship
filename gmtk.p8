@@ -7,7 +7,7 @@ __lua__
 t={1,1,2,2} --const
 card={2,3}
 mem={{},{},nil,nil} -- the models
-flist={{1,1,1,1},{1,1,0,0},{1,1,0,0},{1,1,1,0},{1,1,1,0},{1,1,1,1}}
+flist={{1,0,0,0},{1,1,0,0},{1,1,0,0},{1,1,1,0},{1,1,1,0},{1,1,1,1}}
 nlist={6,8,8,12,12,16,16}
 
 function new_level()
@@ -31,12 +31,12 @@ function new_level()
 	sel={}
 	lsel=0
 	y_camera=0
-	screen=10
+	screen=30
 	curs=0
 end
 
 function _init()
-	hp=60
+	hp=1
 	win=0
 	bool=false -- cinem
 	stars={}
@@ -52,11 +52,12 @@ function _init()
 	init_mstars()
 	init_expl()
 	init_ast()
-	--music(53,120)
+--	music(53,120)
 	n=8
 	new_level()
-	screen=10 -- todo 0 dans version finale
+	screen=0 -- todo 0 dans version finale
 	t0=time()
+	t2=time()
 end
 
 function _update60()
@@ -79,12 +80,14 @@ function _update60()
 	if screen==11 then
 	-- selection screen
 	 -- movement
-  if(btnp(⬅️)) curs=max(0,curs-2)
-  if(btnp(➡️)) curs=min(n-1,curs+2)
+  if(btnp(⬅️)) sfx(12) curs=max(0,curs-2)
+  if(btnp(➡️)) sfx(12) curs=min(n-1,curs+2)
   if btnp(⬆️) then
+   sfx(12)
    if(curs%2==1) curs-=1 else screen=10
   end
   if btnp(⬇️) then
+   sfx(12)
    if curs%2==0 then
     if(curs==n-1) curs-=1 else curs+=1
    else
@@ -96,6 +99,7 @@ function _update60()
   -- selection
   if btnp(🅾️) then
    if enable[curs+1] and lsel<4 then
+    sfx(11)
     enable[curs+1]=false
     lsel+=1
     for i=1,4 do
@@ -105,6 +109,7 @@ function _update60()
     for i=1,4 do
      if(sel[i]==curs+1) sel[i]=nil
     end
+    sfx(13)
     enable[curs+1]=true
     lsel-=1
    end    
@@ -116,18 +121,26 @@ function _update60()
    for i=1,4 do
     sel[i]={sel[i],rnd(8)-4,rnd(16)-8,rnd()<.5,rnd()<.5}
    end
+   sfx(11)
    confirm_sel()
   end
 	end
 	
 	if screen==10 then
 	 -- objective screen
-	 if(btnp(⬇️)) screen=11
+	 if(btnp(⬇️)) sfx(12) screen=11
 	end
 	
 	if screen==12 then
 	 -- dog screen
-	 if(btn(⬆️)) screen=11
+	 if(btnp(⬆️)) sfx(12) screen=11
+	end
+	
+	if screen==30 or screen==31 then
+	 update_expl()
+	 update_mstars()
+	 -- game over / victory screen
+	 if(time()-t3>3 and (btnp(❎) or btnp(🅾️))) sfx(11) _init()
 	end
 	
 	-- animation update
@@ -135,14 +148,17 @@ function _update60()
   update_stars()
 	end
 	
-	if screen==20 and time()-t2>1 then
-	 screen+=1
+	if screen==20 then
+	 update_mstars()
+	 update_stars()
+	 if(time()-t2>1.5) screen+=1
 	end
 	
 	if screen>=21 and screen<=29 then
   -- interpretation screen
   update_stars()
   if btnp(🅾️) then
+   sfx(12)
    screen+=1
    while screen<=24 and not f[screen-20] do
     screen+=1
@@ -150,10 +166,16 @@ function _update60()
    -- after screen 25
    if screen==26 then
     hp-=damage
+    win+=win_pts 
     if hp<=0 then
-     screen=30 -- game over...
+     screen=30 -- game over..
+     t3=time()
+     music(27)
+    elseif win>=60 then
+     screen=31 -- win
+     t3=time()
+     music(0)
     else
-     win+=win_pts 
      new_level()
      screen=12
      y_camera=128
@@ -313,7 +335,7 @@ function mem_update_reg(ex,e,c,index)
  {1,1,0,-1},{0,1,1,-1},{0,-1,1,1},{1,0,1,0},{0,1,0,1},{1,0,-1,1}}
  for l in all(couple) do
   a,b,c,d=unpack(l)  
-  local d=25 -- big malus
+  local d=30 -- big malus
   for k in all(ex) do
    d+=abs(k[5]-a*k[1]-b*k[2]-c*k[3]-d*k[4])
   end
@@ -518,35 +540,71 @@ function _draw()
  palt(14,true)
  palt(0,false)
  
- if screen==0 or screen==1 then
+ if screen==0 or screen==1 or screen==30 or screen==31 or (screen==20 and time()-t2<1) then
+  camera(0,0)
   cls(0)
   -- title screen
   draw_mstars()
   local x,y=50+10*cos(time()/5),50+10*sin(time()/3)
   local dx=min(0,time()-t0-2)
   x+=50*dx
-  circfill()
-  if(screen==1) color(9) else color(8)
+  if screen==30 then -- derive
+   y-=10*(time()-t3)
+   x+=10*(time()-t3)
+  end
+  if screen==20 then
+   for i=1,4 do
+    local dx=8*cos(time()-t2+i/10+.3)
+    local dy=-7*sin(time()-t2+i/10+.3)
+    local col=f[2] and socks[sel[5-i][1]][3] or 11
+    pset(x+dx+20,y+dy+20,col)
+   end
+  end
+  if(screen==1 or screen==20) color(9) else color(8)
   circfill(x-2,y+20,2+6*time()%2)
   line(x+2,y+20,-1,y+20)
   spr(64,x,y,4,4)
   if screen==1 then
+   -- asteroid collision
    local x2=128-120*(time()-t1)
    sspr(0,16,16,16,x2,50+x2/40,32,32)
    if x2<x+20 then
-   -- todo sfx
-   -- change music
     if(not bool) sfx(10,3) music(43,120) bool=true
     draw_expl(x,y)
    end
-  end
-  if screen==0 then
+  elseif screen==0 then
    prt("tHE DAY MY dOG",nil,20,9,1)
-   prt("FLEW MY sPACESHIP",nil,30,9,1)   if(time()%1<.8) prt("press x to lose control!",nil,100,7,1)
+   prt("FLEW MY sPACESHIP",nil,30,9,1)
+   if(time()%1<.8) prt("press x to lose control!",nil,100,7,1)
    local s="bY A cHEAP pLASTIC iMITATION"
    ?s,64-2*#s,114,1
    local s="oF A GAME dEV (cpiod)"
    ?s,64-2*#s,120,1
+  elseif screen==30 then
+   -- game over screen
+   draw_expl(x,y)
+   prt("oh no! the spaceship",nil,20,9,1)
+   prt("is still out of control",nil,28,9,1)
+   prt("and is getting destroyed.",nil,36,9,1)
+   prt("you lose...",nil,44,9,1)
+   
+   if(time()-t3>2) prt("(the dog is fine)",nil,60,9,1)
+   if(time()-t3>3 and time()%1<.8) prt("press x or z to restart",nil,100,7,1)
+   palt(15,true)
+   palt(14,false)
+   
+   local x=190-30*(time()-t3)
+   local y=90-10*(time()-t3)
+   nspr=132+4*flr(5*time()%2)
+   spr(nspr,x+10,y+28,4,4)
+   spr(68,x,y,4,4)
+   spr(128,x,y,4,4)
+  elseif screen==31 then
+   -- victory screen
+   prt("congratulations!",nil,20,11,1)
+   prt("you took back control.",nil,28,11,1)
+   prt("now to deliver the socks.",nil,36,11,1)
+   if(time()-t3>3 and time()%1<.8) prt("press x or z to restart",nil,100,7,1)
   end
  
  elseif screen>=10 and screen<=12 then
@@ -705,8 +763,6 @@ function _draw()
    prt("freq FORMULA:",nil,360,12,0)
    prt(display_equ(mem[4]),nil,367,12,0)
   end
-
-
  elseif screen>=20 and screen<=25 then
   -- interpretation screens
   palt()
@@ -729,7 +785,7 @@ function _draw()
   if(screen<=24) then
    -- sock for dog
    for i=1,4 do
-    d=max(0,min(1,1-max(0,4*(t2-time())+2)+0.2*(4-i)))
+    d=max(0,min(1,1-max(0,4*(t2-time()+1)+2)+0.2*(4-i)))
     local index,x,y = unpack(sel[i])
     draw_sock(9+22*i+x,38+y,socks[index],true,d)
  	 end
@@ -741,7 +797,7 @@ function _draw()
 	 palt(0,false)
 	 if screen!=25 then
 	  -- dog
-	  sspr(32,32,32,32,126-(max(0,min(.67,time()-t2-.5)))*135,15,64,64)
+	  sspr(32,32,32,32,126-(max(0,min(.67,time()-t2-1)))*135,15,64,64)
 	 end
 	 
 	 if screen==21 or screen==22 then
@@ -811,7 +867,7 @@ function _draw()
 	  y+=20
 	  if f[3] then
 	   if abs(inter[3][2][2]-o[3])<=1 then
-	    prt("tHE BOMB IS NEUTRALIZED",nil,y,0,8)
+	    prt("tHE BOMB IS NEUTRALIZED",nil,y,0,6)
 	   elseif abs(inter[3][2][2]-o[3])<=3 then
 	    prt("tHE BOMB EXPLOSED FAR AWAY",nil,y,0,9)
 	    prt("hull damage: 1",nil,y+8,0,9)
@@ -825,12 +881,16 @@ function _draw()
 	  end
 	  y+=20
 	  if f[4] then
-	   if abs(inter[4][2][2]-o[4])<=1 then
+	   if inter[4][2][2]==o[4] then
+	    prt("wE COULD SPOKE TO THE POLICE!",nil,y,0,11)
+	    prt("win point: 15",nil,y+8,0,11)
+	    win_pts=15
+	   elseif abs(inter[4][2][2]-o[4])<=1 then
 	    prt("wE COULD SPOKE TO THE POLICE!",nil,y,0,11)
 	    prt("win point: 10",nil,y+8,0,11)
 	    win_pts=10
 	   else
-	    prt("nO SIGNAL.",nil,y,0,6)
+	    prt("wRONG FREQUENCY. nO SIGNAL...",nil,y,0,6)
 	   end
 	  end
 	  y+=20
@@ -976,6 +1036,38 @@ eeeeeee0011111111110cc0eeeeeeeeefffffff007777777777ee7700fffffff0000000000000000
 eeeeeeeee0000000000000eeeeeeeeeefffffffff00077777777000fffffffff0000000000000000000000000000000000000000000000000000000000000000
 eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeffffffffffff00000000ffffffffffff0000000000000000000000000000000000000000000000000000000000000000
 eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeffffffffffffffffffffffffffffffff0000000000000000000000000000000000000000000000000000000000000000
+fffffffffffffffffffffffffffffffffffffffff6666ffffffffffffffffffffffffffff6666fffffffffffffffffff00000000000000000000000000000000
+fffffffffffffffffffffffffffffddffffffff6666666666ffffffffffffffffffffff6666666666fffffffffffffff00000000000000000000000000000000
+fffffffffffffcccccccffffffffffdfffffff666666666666666fffffffffffffffff666666666666666fffffffffff00000000000000000000000000000000
+ffffffffffcccccccccccccfffffffdfffffff666666666666666666ffffffffffffff666666666666666666ffffffff00000000000000000000000000000000
+fffffffffccccfffffffccccffffffdffffff66666666666666666666ffffffffffff66666666666666666666fffffff00000000000000000000000000000000
+fffffffcccfffffffffffffcccffffdffffff666666666666666666666fffffffffff666666666666666666666ffffff00000000000000000000000000000000
+ffffffccfffffffffffffffffccfffdfffff7666666666666666666666ffffffffff7666666666666666666666ffffff00000000000000000000000000000000
+fffffccfffffffffffffffffffccffdfffff76666666666666666666666fffffffff76666666666666666666666fffff00000000000000000000000000000000
+fffffcffff77fffffffffffffffcffdffff777666666666666666666666ffffffff777666666666666666666666fffff00000000000000000000000000000000
+ffffcffff7ffffffffffffffffffcfdffff7777666666666666666666666f666fff7777666666666666666666666ffff00000000000000000000000000000000
+fffcffff7ffffffffffffffffffffcdffff777766666666666666666666666fffff777766666666666666666666666ff00000000000000000000000000000000
+ffccfff7fffffffffffffffffffffccffff7777776666666666666666666fffffff7777776666666666666666666f66600000000000000000000000000000000
+ffccfff7fffffffffffffffffffffccffff7777777666666666666666666fffffff7777777666666666666666666ffff00000000000000000000000000000000
+ffcfffffffffffffffffffffffffffcfffff77777776666666666666666fffffffff77777776666666666666666fffff00000000000000000000000000000000
+fccfffffffffffffffffffffffffffccffff77777777777666666666666fffffffff77777777777666666666666fffff00000000000000000000000000000000
+fccfffffffffffffffffffffffffffccfffff777777777777777666666fffffffffff777777777777777666666ffffff00000000000000000000000000000000
+fccfffffffffffffffffffffffffffccfffff777777777777777777666fffffffffff777777777777777777666ffffff00000000000000000000000000000000
+fccfffffffffffffffffffffffffffccffffff7777777777777777777fffffffffff777777777777777777777fffffff00000000000000000000000000000000
+fccfffffffffffffffffffffffffffccffffff77777777777777777ffffffffffff77f777777777777777777ffffffff00000000000000000000000000000000
+fccfffffffffffffffffffffffffffccffffff7ff777777777777777ffffffffff77fffff777777777777777777777ff00000000000000000000000000000000
+fccfffffffffffffffffffffffffffccfffff77fff7777777777fff77ff7fffff77fffff7f7777777777ff77ffffffff00000000000000000000000000000000
+ffccfffffffffffffffffffffffffccffffff77f777ffffffff77fff7777fffff77ffff77ffffffffffffff77fffffff00000000000000000000000000000000
+ffccfffffffffffffffffffffffffccfffff77ff77ffffffffff77fffffffffff77ffff77fffffffffffffff7777ffff00000000000000000000000000000000
+ffccfffffffffffffffffffffffffccfffff777f777ffffffffff7777fffffffff7fffff7fffffffffffffffffffffff00000000000000000000000000000000
+fffccfffffffffffffffffffffffccfffffff77fff7fffffffffffffffffffffffffffff7fffffffffffffffffffffff00000000000000000000000000000000
+ffffccfffffffffffffffffffffccffffffff777fffffffffffffffffffffffffffffffff7ffffffffffffffffffffff00000000000000000000000000000000
+fffffcfffffffffffffffffffffcffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff00000000000000000000000000000000
+fffffccfffffffffffffffffffccffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff00000000000000000000000000000000
+fffffffccfffffffffffffffccffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff00000000000000000000000000000000
+ffffffffccfffffffffffffccfffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff00000000000000000000000000000000
+ffffffffffcccfffffffcccfffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff00000000000000000000000000000000
+fffffffffffffcccccccffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff00000000000000000000000000000000
 __sfx__
 001800200c0351004515055170550c0351004515055170550c0351004513055180550c0351004513055180550c0351104513055150550c0351104513055150550c0351104513055150550c035110451305515055
 010c0020102451c0071c007102351c0071c007102251c007000001022510005000001021500000000001021013245000001320013235000001320013225000001320013225000001320013215000001320013215
@@ -988,9 +1080,9 @@ __sfx__
 003000200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 01240020051450c145051450c145051450c145051450c145071450e145071450e145071450e145071450e1450d145141450d145141450d145141450d145141450c145071450c145071450c145071450c14507145
 00060000316722f6722b6622b65229642246321c6321a632166220c612066121f6021d6021f6021c6021c6022160221602216022260224602246021c6021c6021d6021f602206022260224602246022460224602
-012400200e145151450e145151450e145151450e145151450c145131450c145131450c145131450c145131450f145161450f145161450f145161450f145161450e145151450e145151450c145131450c14513145
-011200200c1330960509613096131f6330960509615096150c1330960509613096130062309605096050e7130c1330960509613096131f6330960509615096150c1330960509613096130062309605096050e713
-014800200c5240c5200c5200c52510524105201052010525115241152011520115251352413520135201352511524115201152011525135241352013520135251452414520145201452013520135201352013525
+00080000120551f0550e005150050e005150050e005150050c005130050c005130050c005130050c005130050f005160050f005160050f005160050f005160050e005150050e005150050c005130050c00513005
+00080000110430960509603096031f6030960509605096050c1030960509603096030060309605096050e7030c1030960509603096031f6030960509605096050c1030960509603096030060309605096050e703
+0006000018054110500c5000c50510504105001050010505115041150011500115051350413500135001350511504115001150011505135041350013500135051450414500145001450013500135001350013505
 014800200573405730057300573507734077300773007735087340873008730087350c7340c7300c7300c73505734057300573005735077340773007730077350d7340d7300d7300d7350c7340c7300c7300c735
 014800200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 013200202005420050200502005520054200502005020055200542005020050200551e0541e0501c0541c05023054230502305023055210542105020054200501c0541c0501c0501c0501c0501c0501c0501c055
