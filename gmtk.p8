@@ -20,6 +20,7 @@ end
 
 function hard_mode()
  hard=true
+ thard=time()
 end
 menuitem(1,"disable tutorial",disable_tuto)
 menuitem(2,"enable hard mode",hard_mode)
@@ -679,6 +680,8 @@ function _draw()
    local dx=5*sin(time()/2)
    prt("that day my dog",nil,20,9,1)
    prt("flew a spaceship",nil,28,9,1)
+   local s="(POST-JAM VERSION)"
+   ?s,64-2*#s,34,1
    if(time()%1<.8) prt("press z to lose control!",nil,100,7,1)
    local s="bY A cHEAP pLASTIC iMITATION"
    ?s,64-2*#s,110,1
@@ -887,6 +890,8 @@ function _draw()
   
   if(lvl==1) prt("nothing... yet",nil,256+80,7,0)
   
+  prt("uSE THE ARROWS TO MOVE",nil,256+122,12,0)
+  
   for k=1,2 do
    for i=1,card[k] do
     local expl=mem[k][i]
@@ -905,8 +910,8 @@ function _draw()
   end
   
   if mem[4]!=nil then
-   prt("freq FORMULA:",nil,360,12,0,15)
-   prt(display_equ(mem[4]),nil,367,12,0,15)
+   prt("freq FORMULA:",nil,360,2,0,15)
+   prt(display_equ(mem[4]),nil,367,2,0,15)
   end
   
   if cinem==1 then
@@ -925,12 +930,16 @@ function _draw()
    prt("if i throw socks at him,",nil,128+96,9,0)    
    prt("maybe i can train him?",nil,128+104,9,0)
   elseif cinem==5 then
-   prt("hooray, he got it right! and",nil,256+80,9,0)
+   if hp==60 then
+	   prt("hooray, he got it right! and",nil,256+80,9,0)
+	  else
+	   prt("he choosed the wrong one... but",nil,256+80,9,0)	  
+	  end
    prt("he can tell me his reasoning!",nil,256+88,9,0)
    prt("let's keep training him.",nil,256+96,9,0)
   elseif cinem==6 then
    prt("dev advice:",nil,256+80,7,0)
-   prt("there are no \"good\" answers.",nil,256+88,7,0)
+   prt("there are no \"right\" answers.",nil,256+88,7,0)
    prt("the dog should be clever enough",nil,256+96,7,0)
    prt("to understand you. good luck!",nil,256+104,7,0)
   elseif cinem==20 then
@@ -1004,13 +1013,13 @@ function _draw()
 	  prt(get_msgf(e,i),nil,y+15,6,0)
 	  
 	  if k[1]==nil then
-	   prt("i have no idea what i'm doing!",nil,y+22,9,0)
+	   prt("i don't know what to do...",nil,y+22,9,0)
 	   prt("i'll try something new: "..msgo[i][k[5]],nil,y+29,9,0)
 	  elseif k[6]==0 then
 	   prt("i know it!",nil,y+22,9,0)
 	   prt("i choose "..msgo[i][k[5]],nil,y+29,9,0)
 	  else
- 	  prt("the closest i know is",nil,y+22,9,0)
+ 	  prt("you taught me",nil,y+22,9,0)
 	   prt(get_msgf(k,i),nil,y+29,6,0)
 	   prt("and it meant "..msgo[i][k[5]],nil,y+36,9,0)
    end
@@ -1025,14 +1034,14 @@ function _draw()
    local i=screen-20
    local y=85
    if i==3 then
-	   prt("shoot the pirates' bomb",nil,y,7,0)
+	   prt("protect from the pirates' bomb",nil,y,7,0)
 	  else
 	   prt("contact the emergency frequency",nil,y,7,0)
    end
 	  local e,l=unpack(inter[i])
 	  local s,val=unpack(l)
 	  if s==nil then
-	  	prt("i have no idea what i'm doing!",nil,y+8,9,0)
+	  	prt("i don't know what to do...",nil,y+8,9,0)
 	   prt("let's choose the mean value:",nil,y+15,9,0)
 	   prt(tostr(val),nil,y+22,9,0)
 	  else
@@ -1078,16 +1087,16 @@ function _draw()
 	  y+=20
 	  if f[3] then
 	   if abs(inter[3][2][2]-o[3])<=1 then
-	    prt("the bomb is neutralized",nil,y,6,0)
+	    prt("the shield neutralized the bomb",nil,y,6,0)
 	   elseif abs(inter[3][2][2]-o[3])<=3 then
 	   	d=hard and 3 or 1
-	    prt("the bomb exploded far away",nil,y,9,0)
+	    prt("the shield were a bit off",nil,y,9,0)
 	    prt("hull damage: "..d,nil,y+8,9,0)
 	    damage+=d
 	   else
 	    local d=flr(abs(inter[3][2][2]-o[3])/2)+2
 	    if(hard) d+=5
-	    prt("the bomb exploded near us!",nil,y,8,0)
+	    prt("the bomb pierced the shield!",nil,y,8,0)
 	    prt("hull damage: "..d,nil,y+8,8,0)
 	    damage+=d
 	   end
@@ -1132,6 +1141,12 @@ function _draw()
 	 end
  else
   assert(false)
+ end
+ 
+ if thard!=nil and time()-thard<4 then
+  camera_x = peek2(0x5f28)
+  camera_y = peek2(0x5f2a)
+  if(time()%.5<.4) prt("hard mode enabled",nil,camera_y+60,8,0,camera_x)
  end
 end
 
