@@ -6,23 +6,43 @@ __lua__
 -- submission to gmtk 2020
 
 -- const
+cartdata("cpiod_dogsocks_1")
 t={1,1,2,2}
 card={2,3}
 flist={{1,0,0,0},{1,0,0,0},{1,1,0,0},{1,1,0,0},{1,1,0,1},{1,1,0,1},{1,1,1,1}}
-col_sock={{3,11,8},{2,8,12},{1,12,11}}
-tuto=true
+tuto=dget(1)!=1
 hard=false
-colorblind=false
+colorblind=dget(0)==1
+
+-- data
+-- 0: 1 iff colorblind
+-- 1: 1 iff no tuto
 
 function disable_tuto()
+ dset(1,1)
  tuto=false
  cinem=0
 end
 
+function init_colorblind()
+ if colorblind then
+  col_sock={{7,7,0},{5,5,0},{0,0,7}}
+  msgf={{"big","small"},{"white","gray","black"}}
+ else
+  col_sock={{3,11,8},{2,8,12},{1,12,11}}
+  msgf={{"big","small"},{"green","red","blue"}}
+ end
+end
+
 function colorblind_mode()
- colorblind=true
- col_sock={{7,7,0},{5,5,0},{0,0,7}}
- msgf={{"big","small"},{"white","gray","black"}}
+ if colorblind then
+  colorblind=false
+  dset(0,0)
+ else
+  colorblind=true
+  dset(0,1)
+ end
+ init_colorblind()
 end
 
 function hard_mode()
@@ -33,6 +53,7 @@ end
 menuitem(1,"disable tutorial",disable_tuto)
 menuitem(2,"colorblind mode",colorblind_mode)
 menuitem(3,"hard mode",hard_mode)
+init_colorblind()
 
 function new_level()
 	lvl+=1
@@ -689,7 +710,9 @@ function _draw()
    prt("flew a spaceship",nil,28,9,1)
    local s="(POST-JAM VERSION)"
    ?s,64-2*#s,34,1
-   if(time()%1<.8) prt("press z to lose control!",nil,100,7,1)
+   if(time()%1<.8) prt("press z to lose control!",nil,92,7,1)
+   local s="ACCESS OPTIONS WITH p"
+   ?s,64-2*#s,100,6
    local s="bY A cHEAP pLASTIC iMITATION"
    ?s,64-2*#s,110,1
    local s="oF A GAME dEV (cpiod)"
@@ -1227,7 +1250,6 @@ function draw_nb(x_center,y_center,set)
  if(lvl==dots_seen) prt("dots",x_center-6,y_center+6,7,0)
 end
 
-msgf={{"big","small"},{"green","red","blue"}}
 msgo={{"left","right"},{"room a","room b","room c","room d"}}
 
 __gfx__
